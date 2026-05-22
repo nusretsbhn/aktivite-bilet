@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import fs from "fs";
 import puppeteer from "puppeteer";
 import { PaymentType } from "@prisma/client";
@@ -25,17 +26,37 @@ let browserLaunching: Promise<Awaited<ReturnType<typeof puppeteer.launch>>> | nu
 
 const CHROME_CANDIDATES = [
   process.env.PUPPETEER_EXECUTABLE_PATH,
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Chromium.app/Contents/MacOS/Chromium",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
   "/usr/bin/google-chrome-stable",
   "/usr/bin/google-chrome",
-  "/usr/bin/chromium",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "/Applications/Chromium.app/Contents/MacOS/Chromium",
 ].filter((p): p is string => Boolean(p));
+
+function findChromeViaWhich(): string | undefined {
+  for (const name of [
+    "chromium",
+    "chromium-browser",
+    "google-chrome-stable",
+    "google-chrome",
+  ]) {
+    try {
+      const p = execSync(`which ${name} 2>/dev/null`, { encoding: "utf8" }).trim();
+      if (p && fs.existsSync(p)) return p;
+    } catch {
+      /* not on PATH */
+    }
+  }
+  return undefined;
+}
 
 function resolveChromePath(): string | undefined {
   for (const p of CHROME_CANDIDATES) {
     if (fs.existsSync(p)) return p;
   }
+  const fromPath = findChromeViaWhich();
+  if (fromPath) return fromPath;
   try {
     const bundled = puppeteer.executablePath("chrome");
     if (typeof bundled === "string" && fs.existsSync(bundled)) return bundled;
@@ -50,23 +71,38 @@ async function getBrowser() {
   if (browserLaunching) return browserLaunching;
 
   const executablePath = resolveChromePath();
+  if (!executablePath) {
+    console.error("Chromium bulunamadı. PUPPETEER_EXECUTABLE_PATH=", process.env.PUPPETEER_EXECUTABLE_PATH);
+    throw new AppError(
+      503,
+      "Bilet görseli için sunucuda Chromium gerekli. EasyPanel backend Environment: PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium ve Dockerfile ile yeniden deploy edin."
+    );
+  }
+
   const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-    ...(executablePath ? { executablePath } : {}),
+    executablePath,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+    ],
   };
 
   browserLaunching = puppeteer.launch(launchOptions);
   try {
     browserInstance = await browserLaunching;
+    console.info("Puppeteer Chromium:", executablePath);
     return browserInstance;
   } catch (err) {
     browserInstance = null;
     browserLaunching = null;
-    console.error("Puppeteer başlatılamadı:", err);
+    console.error("Puppeteer başlatılamadı:", executablePath, err);
     throw new AppError(
       503,
-      "Bilet görseli oluşturulamadı. Backend klasöründe: npx puppeteer browsers install chrome"
+      `Bilet görseli oluşturulamadı (${executablePath}). Sunucuyu Dockerfile ile deploy edin veya npx puppeteer browsers install chrome çalıştırın.`
     );
   } finally {
     browserLaunching = null;
@@ -413,6 +449,7 @@ export async function generateTicketImage(
   try {
     return await renderHtmlToBuffer(html, format, filename);
   } catch (err) {
+    if (err instanceof AppError) throw err;
     console.error("Bilet görseli oluşturma hatası:", err);
     throw new AppError(503, "Bilet görseli oluşturulamadı");
   }

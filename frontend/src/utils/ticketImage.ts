@@ -38,9 +38,7 @@ export async function fetchTicketImageBlob(
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = (err as { message?: string }).message ?? "Görsel yüklenemedi";
-    throw new Error(
-      msg === "Sunucu hatası" ? "Bilet görseli oluşturulamadı (Chrome gerekli)" : msg
-    );
+    throw new Error(msg);
   }
 
   return res.blob();
