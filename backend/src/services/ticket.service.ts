@@ -6,7 +6,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { AppError } from "../middlewares/errorHandler.js";
-import { generateTicketNo } from "../utils/ticketNo.js";
+import { allocateTicketNos } from "../utils/ticketNo.js";
 import { calcActivityLineTotal } from "../utils/pricing.js";
 import * as activityService from "./activity.service.js";
 import * as activityPriceService from "./activityPrice.service.js";
@@ -227,9 +227,10 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
     resolved[0].tourDate
   );
 
-  const ticketNo = await generateTicketNo();
-
   const ticket = await prisma.$transaction(async (tx) => {
+    const lineTicketNos = await allocateTicketNos(resolved.length, tx);
+    const ticketNo = lineTicketNos[0];
+
     const created = await tx.ticket.create({
       data: {
         ticketNo,
@@ -247,7 +248,8 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
         remainingAmount,
         bankAccountId: input.bankAccountId,
         activities: {
-          create: resolved.map((l) => ({
+          create: resolved.map((l, i) => ({
+            ticketNo: lineTicketNos[i],
             activityId: l.activityId,
             tourDate: l.tourDate,
             tourStartTime: l.tourStartTime,
@@ -302,9 +304,9 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
 
     await activityCurrentAccountService.recordActivityTicketLineEntries(tx, {
       ticketId: created.id,
-      ticketNo,
       tourDate,
-      lines: resolved.map((l) => ({
+      lines: resolved.map((l, i) => ({
+        ticketNo: lineTicketNos[i],
         activityId: l.activityId,
         activityName: l.activityDisplayName,
         buyTotal: l.buyTotal,
@@ -363,6 +365,11 @@ export async function listTickets(query: ListTicketsQuery) {
       { customerName: { contains: s, mode: "insensitive" } },
       { customerPhone: { contains: s } },
       { ticketNo: { contains: s, mode: "insensitive" } },
+      {
+        activities: {
+          some: { ticketNo: { contains: s, mode: "insensitive" } },
+        },
+      },
     ];
   }
 
@@ -466,9 +473,13 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
   return prisma.$transaction(async (tx) => {
     await tx.ticketActivity.deleteMany({ where: { ticketId: id } });
 
+    const lineTicketNos = await allocateTicketNos(resolved.length, tx);
+    const ticketNo = lineTicketNos[0];
+
     const updated = await tx.ticket.update({
       where: { id },
       data: {
+        ticketNo,
         tourDate,
         customerName: input.customerName,
         customerPhone: input.customerPhone,
@@ -485,7 +496,8 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
         status: TicketStatus.EDITED,
         revisionCount,
         activities: {
-          create: resolved.map((l) => ({
+          create: resolved.map((l, i) => ({
+            ticketNo: lineTicketNos[i],
             activityId: l.activityId,
             tourDate: l.tourDate,
             tourStartTime: l.tourStartTime,
@@ -514,9 +526,9 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
     });
 
     await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
-      ticketNo: existing.ticketNo,
       tourDate,
-      lines: resolved.map((l) => ({
+      lines: resolved.map((l, i) => ({
+        ticketNo: lineTicketNos[i],
         activityId: l.activityId,
         activityName: l.activityDisplayName,
         buyTotal: l.buyTotal,

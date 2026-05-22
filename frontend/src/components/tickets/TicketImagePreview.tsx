@@ -10,7 +10,6 @@ import {
 
 type Props = {
   ticketId: number;
-  ticketNo: string;
   onClose?: () => void;
 };
 
@@ -27,7 +26,7 @@ function safeFilename(ticketNo: string, displayName: string, ext: string) {
   return `${ticketNo.replace(/[^a-zA-Z0-9-]/g, "_")}-${slug}.${ext}`;
 }
 
-export function TicketImagePreview({ ticketId, ticketNo, onClose }: Props) {
+export function TicketImagePreview({ ticketId, onClose }: Props) {
   const [loaded, setLoaded] = useState<LoadedImage[]>([]);
   const [loadingImages, setLoadingImages] = useState(false);
   const [error, setError] = useState("");
@@ -79,17 +78,17 @@ export function TicketImagePreview({ ticketId, ticketNo, onClose }: Props) {
 
   async function handleDownloadPng(line: ActivityTicketImage) {
     const blob = await fetchTicketImageBlob(ticketId, line.lineId, "png");
-    downloadBlob(blob, safeFilename(ticketNo, line.displayName, "png"));
+    downloadBlob(blob, safeFilename(line.ticketNo, line.displayName, "png"));
   }
 
   async function handleDownloadPdf(line: ActivityTicketImage) {
     const blob = await fetchTicketImageBlob(ticketId, line.lineId, "pdf");
-    downloadBlob(blob, safeFilename(ticketNo, line.displayName, "pdf"));
+    downloadBlob(blob, safeFilename(line.ticketNo, line.displayName, "pdf"));
   }
 
   async function handleShare(line: ActivityTicketImage) {
     try {
-      await shareActivityTicketImage(ticketId, ticketNo, line);
+      await shareActivityTicketImage(ticketId, line);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Paylaşılamadı");
     }
@@ -125,11 +124,13 @@ export function TicketImagePreview({ ticketId, ticketNo, onClose }: Props) {
             className="rounded-xl border border-border bg-card p-3 shadow-sm"
           >
             <h3 className="mb-2 font-semibold text-primary">
-              {line.index}. {line.displayName}
+              <span className="font-mono text-lg tracking-wider">{line.ticketNo}</span>
+              <span className="mx-2 text-muted">·</span>
+              {line.displayName}
             </h3>
             <img
               src={url}
-              alt={`${line.displayName} — ${ticketNo}`}
+              alt={`${line.ticketNo} — ${line.displayName}`}
               className="mx-auto w-full max-w-sm rounded-lg border"
             />
             <div className="mt-3 grid grid-cols-2 gap-2">

@@ -5,6 +5,7 @@ import { apiFetch } from "@/utils/api";
 import { TicketStatusBadge } from "@/components/tickets/TicketStatusBadge";
 import { TicketImagePreview } from "@/components/tickets/TicketImagePreview";
 import type { TicketListItem } from "@/types/ticket";
+import { formatTicketNumbers } from "@/utils/ticketNo";
 
 type ListResponse = {
   items: TicketListItem[];
@@ -14,10 +15,7 @@ type ListResponse = {
 
 export function TicketsPage() {
   const [search, setSearch] = useState("");
-  const [previewTicket, setPreviewTicket] = useState<{
-    id: number;
-    ticketNo: string;
-  } | null>(null);
+  const [previewTicketId, setPreviewTicketId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -42,13 +40,12 @@ export function TicketsPage() {
       year: "numeric",
     });
 
-  if (previewTicket) {
+  if (previewTicketId) {
     return (
       <div className="p-4">
         <TicketImagePreview
-          ticketId={previewTicket.id}
-          ticketNo={previewTicket.ticketNo}
-          onClose={() => setPreviewTicket(null)}
+          ticketId={previewTicketId}
+          onClose={() => setPreviewTicketId(null)}
         />
       </div>
     );
@@ -99,7 +96,7 @@ export function TicketsPage() {
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-mono text-lg font-bold tracking-wide text-primary">
-                  {ticket.ticketNo}
+                  {formatTicketNumbers(ticket)}
                 </p>
                 {ticket.revisionCount > 0 && (
                   <span className="mt-0.5 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
@@ -139,9 +136,7 @@ export function TicketsPage() {
               </Link>
               <button
                 type="button"
-                onClick={() =>
-                  setPreviewTicket({ id: ticket.id, ticketNo: ticket.ticketNo })
-                }
+                onClick={() => setPreviewTicketId(ticket.id)}
                 className="min-h-11 rounded-lg bg-teal-700 text-sm font-medium text-white"
               >
                 Görsel

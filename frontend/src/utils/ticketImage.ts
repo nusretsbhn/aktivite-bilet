@@ -4,6 +4,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 export type ActivityTicketImage = {
   lineId: number;
+  ticketNo: string;
   index: number;
   displayName: string;
   tourDate: string;
@@ -63,17 +64,16 @@ function safeFilename(ticketNo: string, displayName: string, ext: string) {
 
 export async function shareActivityTicketImage(
   ticketId: number,
-  ticketNo: string,
   line: ActivityTicketImage
 ) {
   const blob = await fetchTicketImageBlob(ticketId, line.lineId, "png");
-  const filename = safeFilename(ticketNo, line.displayName, "png");
+  const filename = safeFilename(line.ticketNo, line.displayName, "png");
   const file = new File([blob], filename, { type: "image/png" });
 
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     await navigator.share({
       files: [file],
-      title: `${line.displayName} — ${ticketNo}`,
+      title: `${line.displayName} — ${line.ticketNo}`,
     });
     return;
   }

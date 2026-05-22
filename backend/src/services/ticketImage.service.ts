@@ -135,6 +135,10 @@ function formatMoney(n: number) {
   return n.toLocaleString("tr-TR", { minimumFractionDigits: 0 }) + " ₺";
 }
 
+function activityTicketNo(line: ActivityLine): string {
+  return line.ticketNo;
+}
+
 function lineRemaining(line: ActivityLine) {
   if (line.paymentType === PaymentType.FREE) return 0;
   return Math.max(0, line.unitPrice - line.prepaidAmount);
@@ -192,7 +196,7 @@ function renderElement(
     case "companyName":
       return `<div class="company">${escapeHtml(brand.companyName)}</div>`;
     case "ticketNo":
-      return `<div class="ticket-no-large">${escapeHtml(ticket.ticketNo)}</div>`;
+      return `<div class="ticket-no-large">${escapeHtml(activityTicketNo(line))}</div>`;
     case "ticketBadge": {
       const isRevised = (ticket.revisionCount ?? 0) > 0;
       const label = isRevised ? "REVİZE BİLET" : "YENİ BİLET";
@@ -224,7 +228,7 @@ function renderElement(
     case "paymentStatus":
       return paymentRowHtml(line);
     case "qr": {
-      const qrData = `${ticket.ticketNo}-${line.id}`;
+      const qrData = activityTicketNo(line);
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrData)}`;
       return `<div class="qr"><img src="${qrUrl}" alt="QR" loading="eager" /></div>`;
     }
@@ -260,7 +264,7 @@ function buildActivityTicketHtml(
   }
   if (layout.elements.includes("ticketNo")) {
     headerParts.push(
-      `<div class="ticket-no-large">${escapeHtml(ticket.ticketNo)}</div>`
+      `<div class="ticket-no-large">${escapeHtml(activityTicketNo(line))}</div>`
     );
   }
   if (layout.elements.includes("ticketBadge")) {
@@ -433,6 +437,7 @@ export async function listActivityImages(ticketId: number) {
   const ticket = await getTicketById(ticketId);
   return ticket.activities.map((line, index) => ({
     lineId: line.id,
+    ticketNo: line.ticketNo,
     index: index + 1,
     displayName: line.activity.displayName || line.activity.name,
     tourDate: line.tourDate,
@@ -454,7 +459,7 @@ export async function generateTicketImage(
   const layout = templateService.parseLayout(template?.layout);
 
   const html = buildActivityTicketHtml(ticket, line, brand, layout);
-  const base = ticket.ticketNo.replace(/[^a-zA-Z0-9-]/g, "_");
+  const base = activityTicketNo(line).replace(/[^a-zA-Z0-9-]/g, "_");
   const slug = safeSlug(line.activity.displayName || line.activity.name);
   const ext = format === "pdf" ? "pdf" : "png";
   const filename = `${base}-${slug}.${ext}`;

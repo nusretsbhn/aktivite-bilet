@@ -150,6 +150,7 @@ enum TicketStatus {
 model TicketActivity {
   id              Int         @id @default(autoincrement())
   ticketId        Int
+  ticketNo        String      @unique
   activityId      Int
   tourDate        DateTime
   tourStartTime   String?

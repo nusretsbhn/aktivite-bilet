@@ -51,7 +51,10 @@ export type TicketListItem = {
   childCount: number;
   infantCount: number;
   agency?: { name: string } | null;
-  activities: { activity: { name: string; displayName: string } }[];
+  activities: {
+    ticketNo: string;
+    activity: { name: string; displayName: string };
+  }[];
 };
 
 export const PAYMENT_PREFIX: Partial<Record<PaymentType, string>> = {

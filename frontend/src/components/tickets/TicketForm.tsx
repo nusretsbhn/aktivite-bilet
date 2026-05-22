@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/utils/api";
 import { ActivityLineCard } from "./ActivityLineCard";
 import { TicketImagePreview } from "./TicketImagePreview";
+import { formatTicketNumbers } from "@/utils/ticketNo";
 import { distributePrepaidInteger } from "@/utils/distributePrepaid";
 import { calcLineTotal } from "@/utils/linePricing";
 import type { Activity, BankAccount } from "@/types/ticket";
@@ -97,6 +98,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   const [successTicket, setSuccessTicket] = useState<{
     id: number;
     ticketNo: string;
+    activities: { ticketNo: string }[];
   } | null>(null);
 
   const { data: activities = [] } = useQuery({
@@ -250,14 +252,17 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
     };
 
     try {
-      const res = await apiFetch<{ ticket: { id: number; ticketNo: string } }>(
-        isEdit ? `/tickets/${ticketId}` : "/tickets",
-        {
-          method: isEdit ? "PUT" : "POST",
-          body: JSON.stringify(payload),
-        }
-      );
-      setSuccessTicket({ id: res.ticket.id, ticketNo: res.ticket.ticketNo });
+      const res = await apiFetch<{
+        ticket: { id: number; ticketNo: string; activities: { ticketNo: string }[] };
+      }>(isEdit ? `/tickets/${ticketId}` : "/tickets", {
+        method: isEdit ? "PUT" : "POST",
+        body: JSON.stringify(payload),
+      });
+      setSuccessTicket({
+        id: res.ticket.id,
+        ticketNo: res.ticket.ticketNo,
+        activities: res.ticket.activities,
+      });
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -282,13 +287,10 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
             {isEdit ? "REVİZE BİLET" : "YENİ BİLET"}
           </p>
           <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-primary">
-            {successTicket.ticketNo}
+            {formatTicketNumbers(successTicket)}
           </p>
         </div>
-        <TicketImagePreview
-          ticketId={successTicket.id}
-          ticketNo={successTicket.ticketNo}
-        />
+        <TicketImagePreview ticketId={successTicket.id} />
         <button
           type="button"
           onClick={() => navigate("/tickets")}
