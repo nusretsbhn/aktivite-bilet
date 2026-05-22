@@ -13,7 +13,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "browser:install": "npx puppeteer browsers install chrome",
-    "postinstall": "npx puppeteer browsers install chrome || true"
+    "postinstall": "node -e \"if(process.env.PUPPETEER_SKIP_DOWNLOAD==='true'||process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD==='true')process.exit(0)\" && npx puppeteer browsers install chrome || true"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

@@ -10,21 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Sistem Chromium kullan — npm ci sırasında Puppeteer Chrome indirmesin
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 COPY package.json package-lock.json ./
 RUN npm ci
-
-# Sistem Chromium + yedek: Puppeteer cache (EasyPanel/Docker)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
-RUN npx puppeteer browsers install chrome || true
 
 COPY prisma ./prisma
 COPY tsconfig.json ./
 COPY src ./src
 
 RUN npx prisma generate && npm run build
-
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 3001
 
