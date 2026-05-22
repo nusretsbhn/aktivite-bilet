@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #0f766e;
+  --color-primary-foreground: #ffffff;
+  --color-app: #f8fafc;
+  --color-card: #ffffff;
+  --color-border: #e2e8f0;
+  --color-fg: #0f172a;
+  --color-muted: #64748b;
+  --color-subtle: #94a3b8;
+  --color-muted-surface: #f1f5f9;
+  --color-primary-soft: #f0fdfa;
+  --color-primary-border: #99f6e4;
+  --color-overlay: rgb(0 0 0 / 0.4);
+}
+
+@layer theme {
+  .dark {
+    --color-app: #0f172a;
+    --color-card: #1e293b;
+    --color-border: #334155;
+    --color-fg: #f1f5f9;
+    --color-muted: #94a3b8;
+    --color-subtle: #64748b;
+    --color-muted-surface: #334155;
+    --color-primary-soft: #134e4a;
+    --color-primary-border: #115e59;
+    --color-overlay: rgb(0 0 0 / 0.65);
+    color-scheme: dark;
+  }
+}
+
+body {
+  @apply bg-app text-fg antialiased;
+  margin: 0;
+  min-height: 100dvh;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* Eski slate sınıfları — kademeli uyum */
+.dark .bg-white {
+  background-color: var(--color-card);
+}
+.dark .bg-slate-50 {
+  background-color: var(--color-app);
+}
+.dark .bg-slate-100 {
+  background-color: var(--color-muted-surface);
+}
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--color-border);
+}
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: var(--color-fg);
+}
+.dark .text-slate-700 {
+  color: var(--color-fg);
+}
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: var(--color-muted);
+}
+.dark .text-slate-400 {
+  color: var(--color-subtle);
+}
+.dark .text-teal-800,
+.dark .text-teal-900,
+.dark .text-teal-700 {
+  color: #5eead4;
+}
+.dark .hover\:bg-slate-100:hover {
+  background-color: var(--color-muted-surface);
+}
+.dark .bg-teal-50 {
+  background-color: var(--color-primary-soft);
+}
+.dark .border-teal-100,
+.dark .border-teal-200,
+.dark .border-teal-300,
+.dark .border-teal-400 {
+  border-color: var(--color-primary-border);
+}
+.dark .bg-green-50 {
+  background-color: rgb(20 83 45 / 0.25);
+}
+.dark .bg-red-50 {
+  background-color: rgb(127 29 29 / 0.25);
+}
+.dark .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.25);
+}
+.dark .bg-yellow-100 {
+  background-color: rgb(113 63 18 / 0.35);
+}
+.dark .bg-green-100 {
+  background-color: rgb(20 83 45 / 0.35);
+}
+.dark .bg-red-100 {
+  background-color: rgb(127 29 29 / 0.35);
+}
+.dark .text-green-800 {
+  color: #86efac;
+}
+.dark .text-red-800,
+.dark .text-red-700,
+.dark .text-red-600 {
+  color: #fca5a5;
+}
+.dark .text-amber-900,
+.dark .text-amber-800 {
+  color: #fcd34d;
+}
+.dark .text-yellow-800 {
+  color: #fde047;
+}
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--color-card);
+  border-color: var(--color-border);
+  color: var(--color-fg);
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--color-subtle);
+}
+
+/* react-big-calendar */
+.rbc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.rbc-toolbar button {
+  min-height: 36px;
+}
+.rbc-event {
+  padding: 2px 4px !important;
+}
+
+.dark .rbc-calendar {
+  color: var(--color-fg);
+}
+.dark .rbc-toolbar button {
+  color: var(--color-fg);
+  border-color: var(--color-border);
+  background-color: var(--color-card);
+}
+.dark .rbc-toolbar button:hover,
+.dark .rbc-toolbar button:active,
+.dark .rbc-toolbar button.rbc-active {
+  background-color: var(--color-muted-surface);
+  color: var(--color-fg);
+}
+.dark .rbc-header,
+.dark .rbc-month-header {
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+.dark .rbc-day-bg + .rbc-day-bg,
+.dark .rbc-month-row + .rbc-month-row,
+.dark .rbc-time-content > * + * > * {
+  border-color: var(--color-border);
+}
+.dark .rbc-off-range-bg {
+  background-color: var(--color-app);
+}
+.dark .rbc-today {
+  background-color: rgb(15 118 110 / 0.15);
+}
+.dark .rbc-time-view,
+.dark .rbc-month-view {
+  border-color: var(--color-border);
+}
+.dark .rbc-time-slot {
+  border-color: var(--color-border);
+}
+.dark .rbc-timeslot-group {
+  border-color: var(--color-border);
+}
+.dark .rbc-time-header-content {
+  border-color: var(--color-border);
+}
+.dark .rbc-current-time-indicator {
+  background-color: #14b8a6;
+}

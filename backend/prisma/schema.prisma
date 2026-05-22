@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+model Agency {
+  id             Int                    @id @default(autoincrement())
+  name           String
+  contactName    String
+  phone          String
+  region         String
+  tourInfo       String?
+  serviceHours   String?
+  logoUrl        String?
+  createdAt      DateTime               @default(now())
+  prices         AgencyPrice[]
+  tickets        Ticket[]
+  currentAccount AgencyCurrentAccount[]
+}
+
+model Activity {
+  id             Int                      @id @default(autoincrement())
+  name           String
+  displayName    String
+  description    String?
+  duration       String?
+  isActive       Boolean                  @default(true)
+  tickets        TicketActivity[]
+  prices         ActivityPrice[]
+  agencyPrices   AgencyPrice[]
+  currentAccount ActivityCurrentAccount[]
+}
+
+model ActivityCurrentAccount {
+  id          Int      @id @default(autoincrement())
+  activityId  Int
+  ticketId    Int?
+  description String
+  debit       Float    @default(0)
+  credit      Float    @default(0)
+  balance     Float
+  date        DateTime @default(now())
+  activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+}
+
+model ActivityPrice {
+  id              Int      @id @default(autoincrement())
+  activityId      Int
+  startDate       DateTime
+  endDate         DateTime
+  adultBuyPrice   Float
+  childBuyPrice   Float
+  infantBuyPrice  Float
+  adultSellPrice  Float
+  childSellPrice  Float
+  infantSellPrice Float
+  activity        Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, startDate, endDate])
+}
+
+model AgencyPrice {
+  id              Int       @id @default(autoincrement())
+  agencyId        Int
+  activityId      Int?
+  startDate       DateTime
+  endDate         DateTime
+  adultBuyPrice   Float
+  childBuyPrice   Float
+  infantBuyPrice  Float
+  adultSellPrice  Float
+  childSellPrice  Float
+  infantSellPrice Float
+  agency          Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  activity        Activity? @relation(fields: [activityId], references: [id], onDelete: SetNull)
+}
+
+model Ticket {
+  id              Int              @id @default(autoincrement())
+  ticketNo        String           @unique
+  tourDate        DateTime
+  customerName    String
+  customerPhone   String
+  agencyId        Int?
+  hasTransfer     Boolean          @default(false)
+  hotelName       String?
+  pickupTime      String?
+  tourStartTime   String?
+  adultCount      Int              @default(0)
+  childCount      Int              @default(0)
+  infantCount     Int              @default(0)
+  paymentType     PaymentType
+  totalAmount     Float
+  discountType    DiscountType?
+  discountValue   Float?
+  finalAmount     Float
+  prepaidAmount   Float            @default(0)
+  remainingAmount Float            @default(0)
+  bankAccountId   Int?
+  status          TicketStatus     @default(ACTIVE)
+  notes           String?
+  createdBy       Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  activities      TicketActivity[]
+  user            User             @relation(fields: [createdBy], references: [id])
+  agency          Agency?          @relation(fields: [agencyId], references: [id])
+  bankAccount     BankAccount?     @relation(fields: [bankAccountId], references: [id])
+}
+
+enum PaymentType {
+  FULL_PAID
+  TO_PAY
+  FREE
+  NO_SHOW
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum TicketStatus {
+  ACTIVE
+  CANCELLED
+  EDITED
+}
+
+model TicketActivity {
+  id              Int         @id @default(autoincrement())
+  ticketId        Int
+  activityId      Int
+  tourDate        DateTime
+  tourStartTime   String?
+  unitPrice       Float
+  buyTotal        Float       @default(0)
+  adultCount      Int         @default(0)
+  childCount      Int         @default(0)
+  infantCount     Int         @default(0)
+  adultSellPrice  Float       @default(0)
+  childSellPrice  Float       @default(0)
+  infantSellPrice Float       @default(0)
+  adultBuyPrice   Float       @default(0)
+  childBuyPrice   Float       @default(0)
+  infantBuyPrice  Float       @default(0)
+  prepaidAmount        Float       @default(0)
+  paymentType          PaymentType @default(FULL_PAID)
+  remainderToOperator  Boolean     @default(false)
+  hasTransfer          Boolean     @default(false)
+  hotelName       String?
+  pickupTime      String?
+  notes           String?
+  ticket          Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  activity        Activity    @relation(fields: [activityId], references: [id])
+}
+
+model AgencyCurrentAccount {
+  id          Int      @id @default(autoincrement())
+  agencyId    Int
+  ticketId    Int?
+  description String
+  debit       Float    @default(0)
+  credit      Float    @default(0)
+  balance     Float
+  date        DateTime @default(now())
+  agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+}
+
+model BankAccount {
+  id           Int               @id @default(autoincrement())
+  name         String
+  description  String?
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  tickets      Ticket[]
+  transactions BankTransaction[]
+}
+
+model BankTransaction {
+  id              Int         @id @default(autoincrement())
+  bankAccountId   Int
+  ticketId        Int?
+  ledgerId        Int?        @unique
+  description     String
+  amount          Float
+  transactionDate DateTime    @default(now())
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+}
+
+model GeneralLedger {
+  id          Int        @id @default(autoincrement())
+  type        LedgerType
+  category    String
+  description String
+  amount      Float
+  date        DateTime   @default(now())
+  referenceId Int?
+  createdBy   Int
+}
+
+enum LedgerType {
+  INCOME
+  EXPENSE
+}
+
+model TicketTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String
+  layout    Json
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
