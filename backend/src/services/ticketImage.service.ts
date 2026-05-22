@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import fs from "fs";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import { PaymentType } from "@prisma/client";
 import { AppError } from "../middlewares/errorHandler.js";
 import { getTicketById } from "./ticket.service.js";
@@ -26,6 +26,7 @@ let browserLaunching: Promise<Awaited<ReturnType<typeof puppeteer.launch>>> | nu
 
 const CHROME_CANDIDATES = [
   process.env.PUPPETEER_EXECUTABLE_PATH,
+  "/usr/lib/chromium/chromium",
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
   "/usr/bin/google-chrome-stable",
@@ -33,6 +34,16 @@ const CHROME_CANDIDATES = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   "/Applications/Chromium.app/Contents/MacOS/Chromium",
 ].filter((p): p is string => Boolean(p));
+
+function resolveRealPath(candidate: string): string | undefined {
+  try {
+    if (!fs.existsSync(candidate)) return undefined;
+    const real = fs.realpathSync(candidate);
+    return fs.existsSync(real) ? real : candidate;
+  } catch {
+    return fs.existsSync(candidate) ? candidate : undefined;
+  }
+}
 
 function findChromeViaWhich(): string | undefined {
   for (const name of [
@@ -53,15 +64,13 @@ function findChromeViaWhich(): string | undefined {
 
 function resolveChromePath(): string | undefined {
   for (const p of CHROME_CANDIDATES) {
-    if (fs.existsSync(p)) return p;
+    const resolved = resolveRealPath(p);
+    if (resolved) return resolved;
   }
   const fromPath = findChromeViaWhich();
-  if (fromPath) return fromPath;
-  try {
-    const bundled = puppeteer.executablePath("chrome");
-    if (typeof bundled === "string" && fs.existsSync(bundled)) return bundled;
-  } catch {
-    /* puppeteer cache yok */
+  if (fromPath) {
+    const resolved = resolveRealPath(fromPath);
+    if (resolved) return resolved;
   }
   return undefined;
 }
@@ -88,6 +97,10 @@ async function getBrowser() {
       "--disable-dev-shm-usage",
       "--disable-gpu",
       "--disable-software-rasterizer",
+      "--disable-extensions",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
     ],
   };
 
@@ -450,8 +463,9 @@ export async function generateTicketImage(
     return await renderHtmlToBuffer(html, format, filename);
   } catch (err) {
     if (err instanceof AppError) throw err;
+    const detail = err instanceof Error ? err.message : String(err);
     console.error("Bilet görseli oluşturma hatası:", err);
-    throw new AppError(503, "Bilet görseli oluşturulamadı");
+    throw new AppError(503, `Bilet görseli oluşturulamadı: ${detail}`);
   }
 }
 

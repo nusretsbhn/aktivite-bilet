@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-core \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && (test -x /usr/bin/chromium || ln -sf /usr/bin/chromium-browser /usr/bin/chromium 2>/dev/null || true)
+    && (test -x /usr/bin/chromium || ln -sf /usr/bin/chromium-browser /usr/bin/chromium 2>/dev/null || true) \
+    && chromium --version
 
 WORKDIR /app
 

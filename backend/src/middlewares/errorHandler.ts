@@ -20,6 +20,9 @@ export function errorHandler(
     return res.status(err.statusCode).json({ message: err.message });
   }
 
-  console.error(err);
-  return res.status(500).json({ message: "Sunucu hatası" });
+  console.error("Unhandled error:", err);
+  const detail = err instanceof Error ? err.message : "";
+  const message =
+    detail && detail.length < 200 ? detail : "Sunucu hatası";
+  return res.status(500).json({ message });
 }

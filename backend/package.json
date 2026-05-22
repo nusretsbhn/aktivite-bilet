@@ -12,8 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "browser:install": "npx puppeteer browsers install chrome",
-    "postinstall": "node -e \"if(process.env.PUPPETEER_SKIP_DOWNLOAD==='true'||process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD==='true')process.exit(0)\" && npx puppeteer browsers install chrome || true"
+    "browser:install": "echo 'Docker/production uses system Chromium (/usr/bin/chromium)'"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",
@@ -22,7 +21,7 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "puppeteer": "^25.0.4",
+    "puppeteer-core": "^22.15.0",
     "zod": "^3.25.28"
   },
   "devDependencies": {
