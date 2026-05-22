@@ -17,13 +17,15 @@ Bu hata **geçersiz veya yarım kalmış JSON** okunurken çıkar. EasyPanel ara
 EasyPanel → **Create Service** → **Docker Compose** → GitHub `nusretsbhn/aktivite-bilet`
 
 1. Compose dosyası: repodaki `docker-compose.yml` (veya içeriği yapıştırın)
-2. Ortam değişkenleri (satır satır):
+2. **Source** sekmesindeki editördeki tüm metni silin; GitHub’daki `docker-compose.yml` dosyasının **tamamını** yapıştırın.  
+   `frontend:` satırı `backend:` ile **aynı hizada** olmalı (ikisi de `services:` altında).
+
+3. **Environment** sekmesinde (zorunlu — varsayılan yok):
 
    ```
    POSTGRES_PASSWORD=guclu_sifre_buraya
    JWT_SECRET=uzun-rastgele-jwt-secret
    FRONTEND_URL=https://sizin-domain.com
-   APP_PORT=80
    ```
 
 3. Domain’i **frontend** servisine bağlayın (port 80)
