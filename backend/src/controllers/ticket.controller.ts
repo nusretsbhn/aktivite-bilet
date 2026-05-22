@@ -4,6 +4,7 @@ import { PaymentType, TicketStatus } from "@prisma/client";
 import { AppError } from "../middlewares/errorHandler.js";
 import * as ticketService from "../services/ticket.service.js";
 import * as ticketImageService from "../services/ticketImage.service.js";
+import { contentDisposition } from "../utils/contentDisposition.js";
 
 const activityLineSchema = z.object({
   activityId: z.number().int().positive(),
@@ -94,7 +95,7 @@ export async function getImage(req: Request, res: Response, next: NextFunction) 
       await ticketImageService.generateTicketImage(id, format, lineId);
 
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    res.setHeader("Content-Disposition", contentDisposition(filename, "inline"));
     res.send(buffer);
   } catch (err) {
     next(err);
