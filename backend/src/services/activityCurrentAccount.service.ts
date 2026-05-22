@@ -105,6 +105,64 @@ export async function recordActivityTicketLineEntries(
   }
 }
 
+async function recalculateBalances(tx: TxClient, activityId: number) {
+  const entries = await tx.activityCurrentAccount.findMany({
+    where: { activityId },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+  });
+
+  let running = 0;
+  for (const entry of entries) {
+    running = running + entry.debit - entry.credit;
+    if (entry.balance !== running) {
+      await tx.activityCurrentAccount.update({
+        where: { id: entry.id },
+        data: { balance: running },
+      });
+    }
+  }
+}
+
+/** Bilet düzenlendiğinde eski cari satırlarını kaldırıp yenilerini yazar */
+export async function replaceTicketCariEntries(
+  tx: TxClient,
+  ticketId: number,
+  params: {
+    ticketNo: string;
+    tourDate: Date;
+    lines: {
+      activityId: number;
+      activityName: string;
+      buyTotal: number;
+      unitPrice: number;
+      prepaidAmount: number;
+      paymentType: PaymentType;
+      remainderToOperator?: boolean;
+    }[];
+  }
+) {
+  const old = await tx.activityCurrentAccount.findMany({
+    where: { ticketId },
+    select: { activityId: true },
+  });
+  const activityIds = new Set(old.map((e) => e.activityId));
+
+  await tx.activityCurrentAccount.deleteMany({ where: { ticketId } });
+
+  for (const activityId of activityIds) {
+    await recalculateBalances(tx, activityId);
+  }
+
+  for (const line of params.lines) {
+    activityIds.add(line.activityId);
+  }
+  for (const activityId of activityIds) {
+    await recalculateBalances(tx, activityId);
+  }
+
+  await recordActivityTicketLineEntries(tx, { ticketId, ...params });
+}
+
 export async function getSummary() {
   const activities = await activityService.listAll();
 

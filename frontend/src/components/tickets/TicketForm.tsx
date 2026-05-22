@@ -63,15 +63,34 @@ function applyPricesToLine(
   return next;
 }
 
-export function TicketForm() {
+export type TicketFormInitial = {
+  ticketNo: string;
+  customerName: string;
+  customerPhone: string;
+  bankAccountId: number | null;
+  lines: TicketLineItem[];
+};
+
+type Props = {
+  mode?: "create" | "edit";
+  ticketId?: number;
+  initial?: TicketFormInitial;
+};
+
+export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   const navigate = useNavigate();
   const today = new Date().toISOString().slice(0, 10);
+  const isEdit = mode === "edit" && ticketId != null;
 
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [lines, setLines] = useState<TicketLineItem[]>([]);
-  const [globalPrepaid, setGlobalPrepaid] = useState(0);
-  const [bankAccountId, setBankAccountId] = useState<number | "">("");
+  const [customerName, setCustomerName] = useState(initial?.customerName ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initial?.customerPhone ?? "");
+  const [lines, setLines] = useState<TicketLineItem[]>(initial?.lines ?? []);
+  const [globalPrepaid, setGlobalPrepaid] = useState(
+    () => initial?.lines.reduce((s, l) => s + l.prepaidAmount, 0) ?? 0
+  );
+  const [bankAccountId, setBankAccountId] = useState<number | "">(
+    initial?.bankAccountId ?? ""
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -202,14 +221,11 @@ export function TicketForm() {
     }
 
     setLoading(true);
-    try {
-      const res = await apiFetch<{ ticket: { id: number; ticketNo: string } }>("/tickets", {
-        method: "POST",
-        body: JSON.stringify({
-          customerName: customerName.trim(),
-          customerPhone: customerPhone.trim(),
-          bankAccountId: totalPrepaid > 0 ? bankAccountId || undefined : undefined,
-          activities: lines.map((l) => ({
+    const payload = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      bankAccountId: totalPrepaid > 0 ? bankAccountId || undefined : undefined,
+      activities: lines.map((l) => ({
             activityId: l.activityId,
             tourDate: l.tourDate,
             tourStartTime: l.tourStartTime || undefined,
@@ -231,11 +247,25 @@ export function TicketForm() {
             pickupTime: l.hasTransfer ? l.pickupTime : undefined,
             notes: l.notes || undefined,
           })),
-        }),
-      });
+    };
+
+    try {
+      const res = await apiFetch<{ ticket: { id: number; ticketNo: string } }>(
+        isEdit ? `/tickets/${ticketId}` : "/tickets",
+        {
+          method: isEdit ? "PUT" : "POST",
+          body: JSON.stringify(payload),
+        }
+      );
       setSuccessTicket({ id: res.ticket.id, ticketNo: res.ticket.ticketNo });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Bilet oluşturulamadı");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : isEdit
+            ? "Bilet güncellenemedi"
+            : "Bilet oluşturulamadı"
+      );
     } finally {
       setLoading(false);
     }
@@ -245,8 +275,15 @@ export function TicketForm() {
     return (
       <div className="space-y-4 p-4">
         <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
-          <p className="font-semibold text-green-800">Bilet oluşturuldu</p>
-          <p className="mt-1 font-mono text-lg">{successTicket.ticketNo}</p>
+          <p className="font-semibold text-green-800">
+            {isEdit ? "Bilet güncellendi" : "Bilet oluşturuldu"}
+          </p>
+          <p className="mt-1 text-sm font-bold text-amber-800">
+            {isEdit ? "REVİZE BİLET" : "YENİ BİLET"}
+          </p>
+          <p className="mt-1 font-mono text-2xl font-bold tracking-wider text-primary">
+            {successTicket.ticketNo}
+          </p>
         </div>
         <TicketImagePreview
           ticketId={successTicket.id}
@@ -286,6 +323,13 @@ export function TicketForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
           {error}
         </p>
+      )}
+
+      {isEdit && initial && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center">
+          <p className="text-xs font-bold tracking-wide text-amber-900">REVİZE BİLET</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-primary">{initial.ticketNo}</p>
+        </div>
       )}
 
       <section className="rounded-xl border border-border bg-card p-4">
@@ -422,7 +466,13 @@ export function TicketForm() {
             disabled={loading}
             className="mt-4 min-h-12 w-full rounded-xl bg-teal-700 text-lg font-semibold text-white disabled:opacity-50"
           >
-            {loading ? "Oluşturuluyor…" : "Bilet Oluştur"}
+            {loading
+              ? isEdit
+                ? "Kaydediliyor…"
+                : "Oluşturuluyor…"
+              : isEdit
+                ? "Değişiklikleri Kaydet"
+                : "Bilet Oluştur"}
           </button>
         </section>
       )}

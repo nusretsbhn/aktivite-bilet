@@ -112,6 +112,21 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function update(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
+    const parsed = createTicketSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new AppError(400, parsed.error.errors[0]?.message ?? "Geçersiz veri");
+    }
+    const ticket = await ticketService.updateTicket(id, parsed.data);
+    res.json({ ticket });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function cancel(req: Request, res: Response, next: NextFunction) {
   try {
     const id = Number(req.params.id);

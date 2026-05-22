@@ -46,6 +46,7 @@ export type TicketListItem = {
   prepaidAmount: number;
   remainingAmount: number;
   status: string;
+  revisionCount: number;
   adultCount: number;
   childCount: number;
   infantCount: number;

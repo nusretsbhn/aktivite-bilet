@@ -23,6 +23,7 @@ const ELEMENT_LABELS: Record<string, string> = {
   logo: "Logo",
   companyName: "Firma Adı",
   ticketNo: "Bilet No",
+  ticketBadge: "Bilet Tipi (Yeni / Revize)",
   customerName: "Müşteri Adı",
   customerPhone: "Telefon",
   tourDate: "Tur Tarihi",

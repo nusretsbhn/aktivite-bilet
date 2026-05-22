@@ -6,6 +6,7 @@ export type TemplateElementType =
   | "logo"
   | "companyName"
   | "ticketNo"
+  | "ticketBadge"
   | "customerName"
   | "customerPhone"
   | "tourDate"
@@ -28,6 +29,7 @@ export const DEFAULT_LAYOUT: TemplateLayout = {
   elements: [
     "companyName",
     "ticketNo",
+    "ticketBadge",
     "customerName",
     "customerPhone",
     "tourDate",

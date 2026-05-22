@@ -13,4 +13,5 @@ ticketRouter.post("/", ticketController.create);
 ticketRouter.get("/:id/images", ticketController.listImages);
 ticketRouter.get("/:id/image", ticketController.getImage);
 ticketRouter.get("/:id", ticketController.getById);
+ticketRouter.put("/:id", ticketController.update);
 ticketRouter.delete("/:id", ticketController.cancel);

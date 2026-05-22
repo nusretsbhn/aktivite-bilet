@@ -227,7 +227,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
     resolved[0].tourDate
   );
 
-  const ticketNo = await generateTicketNo(tourDate);
+  const ticketNo = await generateTicketNo();
 
   const ticket = await prisma.$transaction(async (tx) => {
     const created = await tx.ticket.create({
@@ -340,7 +340,11 @@ export async function listTickets(query: ListTicketsQuery) {
 
   const where: Prisma.TicketWhereInput = {};
 
-  if (query.status) where.status = query.status;
+  if (query.status) {
+    where.status = query.status;
+  } else {
+    where.status = { in: [TicketStatus.ACTIVE, TicketStatus.EDITED] };
+  }
   if (query.paymentType) where.paymentType = query.paymentType;
 
   if (query.startDate || query.endDate) {
@@ -403,6 +407,128 @@ export async function getTicketById(id: number) {
   });
   if (!ticket) throw new AppError(404, "Bilet bulunamadı");
   return ticket;
+}
+
+export async function updateTicket(id: number, input: CreateTicketInput) {
+  const existing = await prisma.ticket.findUnique({
+    where: { id },
+    include: { activities: true },
+  });
+  if (!existing) throw new AppError(404, "Bilet bulunamadı");
+  if (existing.status === TicketStatus.CANCELLED) {
+    throw new AppError(400, "İptal edilmiş bilet düzenlenemez");
+  }
+
+  if (input.activities.length === 0) {
+    throw new AppError(400, "En az bir aktivite ekleyin");
+  }
+
+  const resolved: ResolvedLine[] = [];
+  for (const line of input.activities) {
+    resolved.push(await resolveLine(line));
+  }
+
+  const totalPrepaid = resolved.reduce((s, l) => s + l.prepaidAmount, 0);
+  if (totalPrepaid > 0 && !input.bankAccountId && !existing.bankAccountId) {
+    throw new AppError(400, "Ön ödeme için banka/kasa hesabı seçin");
+  }
+
+  for (const line of resolved) {
+    if (line.prepaidAmount > line.unitPrice && line.paymentType !== PaymentType.FREE) {
+      throw new AppError(400, "Ön ödeme, aktivite tutarından fazla olamaz");
+    }
+  }
+
+  const totalAmount = resolved.reduce((s, l) => s + l.unitPrice, 0);
+  const finalAmount = totalAmount;
+  const prepaidAmount = totalPrepaid;
+  const remainingAmount = Math.max(
+    0,
+    resolved.reduce((s, l) => {
+      if (l.paymentType === PaymentType.FREE) return s;
+      return s + Math.max(0, l.unitPrice - l.prepaidAmount);
+    }, 0)
+  );
+
+  const adultCount = resolved.reduce((s, l) => s + l.adultCount, 0);
+  const childCount = resolved.reduce((s, l) => s + l.childCount, 0);
+  const infantCount = resolved.reduce((s, l) => s + l.infantCount, 0);
+  const paymentType = aggregatePaymentType(resolved);
+  const hasTransfer = resolved.some((l) => l.hasTransfer);
+  const tourDate = resolved.reduce(
+    (min, l) => (l.tourDate < min ? l.tourDate : min),
+    resolved[0].tourDate
+  );
+
+  const bankAccountId = input.bankAccountId ?? existing.bankAccountId;
+  const revisionCount = existing.revisionCount + 1;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.ticketActivity.deleteMany({ where: { ticketId: id } });
+
+    const updated = await tx.ticket.update({
+      where: { id },
+      data: {
+        tourDate,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        hasTransfer,
+        adultCount,
+        childCount,
+        infantCount,
+        paymentType,
+        totalAmount,
+        finalAmount,
+        prepaidAmount,
+        remainingAmount,
+        bankAccountId,
+        status: TicketStatus.EDITED,
+        revisionCount,
+        activities: {
+          create: resolved.map((l) => ({
+            activityId: l.activityId,
+            tourDate: l.tourDate,
+            tourStartTime: l.tourStartTime,
+            unitPrice: l.unitPrice,
+            buyTotal: l.buyTotal,
+            adultCount: l.adultCount,
+            childCount: l.childCount,
+            infantCount: l.infantCount,
+            adultSellPrice: l.adultSellPrice,
+            childSellPrice: l.childSellPrice,
+            infantSellPrice: l.infantSellPrice,
+            adultBuyPrice: l.adultBuyPrice,
+            childBuyPrice: l.childBuyPrice,
+            infantBuyPrice: l.infantBuyPrice,
+            prepaidAmount: l.prepaidAmount,
+            paymentType: l.paymentType,
+            remainderToOperator: l.remainderToOperator,
+            hasTransfer: l.hasTransfer,
+            hotelName: l.hotelName,
+            pickupTime: l.pickupTime,
+            notes: l.notes,
+          })),
+        },
+      },
+      include: ticketInclude,
+    });
+
+    await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
+      ticketNo: existing.ticketNo,
+      tourDate,
+      lines: resolved.map((l) => ({
+        activityId: l.activityId,
+        activityName: l.activityDisplayName,
+        buyTotal: l.buyTotal,
+        unitPrice: l.unitPrice,
+        prepaidAmount: l.prepaidAmount,
+        paymentType: l.paymentType,
+        remainderToOperator: l.remainderToOperator,
+      })),
+    });
+
+    return updated;
+  });
 }
 
 export async function cancelTicket(id: number) {

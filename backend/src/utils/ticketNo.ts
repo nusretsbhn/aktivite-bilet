@@ -1,22 +1,17 @@
 import { prisma } from "./prisma.js";
 
-export async function generateTicketNo(date: Date): Promise<string> {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const prefix = `TKT-${y}${m}${d}-`;
-
-  const last = await prisma.ticket.findFirst({
-    where: { ticketNo: { startsWith: prefix } },
-    orderBy: { ticketNo: "desc" },
+/** Sıralı bilet no: 00001, 00002, … (ilk bilet 00001) */
+export async function generateTicketNo(): Promise<string> {
+  const tickets = await prisma.ticket.findMany({
     select: { ticketNo: true },
   });
 
-  let seq = 1;
-  if (last) {
-    const part = last.ticketNo.slice(prefix.length);
-    seq = (parseInt(part, 10) || 0) + 1;
+  let maxSeq = 0;
+  for (const t of tickets) {
+    if (/^\d{5}$/.test(t.ticketNo)) {
+      maxSeq = Math.max(maxSeq, parseInt(t.ticketNo, 10));
+    }
   }
 
-  return `${prefix}${String(seq).padStart(3, "0")}`;
+  return String(maxSeq + 1).padStart(5, "0");
 }

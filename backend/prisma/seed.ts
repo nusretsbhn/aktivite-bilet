@@ -108,10 +108,20 @@ async function main() {
       primaryColor?: string;
       showLogo?: boolean;
     };
+    let changed = false;
     if (layout.elements && !layout.elements.includes("activityNotes")) {
       const idx = layout.elements.indexOf("activities");
       const insertAt = idx >= 0 ? idx + 1 : layout.elements.length;
       layout.elements.splice(insertAt, 0, "activityNotes");
+      changed = true;
+    }
+    if (layout.elements && !layout.elements.includes("ticketBadge")) {
+      const idx = layout.elements.indexOf("ticketNo");
+      const insertAt = idx >= 0 ? idx + 1 : layout.elements.length;
+      layout.elements.splice(insertAt, 0, "ticketBadge");
+      changed = true;
+    }
+    if (changed) {
       await prisma.ticketTemplate.update({
         where: { id: defaultTpl.id },
         data: { layout },
@@ -129,6 +139,7 @@ async function main() {
           elements: [
             "companyName",
             "ticketNo",
+            "ticketBadge",
             "customerName",
             "customerPhone",
             "tourDate",

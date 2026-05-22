@@ -143,7 +143,13 @@ function renderElement(
     case "companyName":
       return `<div class="company">${escapeHtml(brand.companyName)}</div>`;
     case "ticketNo":
-      return `<div class="ticket-no">${escapeHtml(ticket.ticketNo)}</div>`;
+      return `<div class="ticket-no-large">${escapeHtml(ticket.ticketNo)}</div>`;
+    case "ticketBadge": {
+      const isRevised = (ticket.revisionCount ?? 0) > 0;
+      const label = isRevised ? "REVİZE BİLET" : "YENİ BİLET";
+      const cls = isRevised ? "ticket-badge ticket-badge--rev" : "ticket-badge ticket-badge--new";
+      return `<div class="${cls}">${label}</div>`;
+    }
     case "customerName":
       return row("Müşteri", ticket.customerName);
     case "customerPhone":
@@ -204,11 +210,26 @@ function buildActivityTicketHtml(
     headerParts.push(`<div class="company">${escapeHtml(brand.companyName)}</div>`);
   }
   if (layout.elements.includes("ticketNo")) {
-    headerParts.push(`<div class="ticket-no">${escapeHtml(ticket.ticketNo)}</div>`);
+    headerParts.push(
+      `<div class="ticket-no-large">${escapeHtml(ticket.ticketNo)}</div>`
+    );
+  }
+  if (layout.elements.includes("ticketBadge")) {
+    const isRevised = (ticket.revisionCount ?? 0) > 0;
+    const label = isRevised ? "REVİZE BİLET" : "YENİ BİLET";
+    const cls = isRevised ? "ticket-badge ticket-badge--rev" : "ticket-badge ticket-badge--new";
+    headerParts.push(`<div class="${cls}">${label}</div>`);
   }
 
+  const headerOnly = new Set([
+    "logo",
+    "companyName",
+    "ticketNo",
+    "ticketBadge",
+    ...SKIP_ELEMENTS,
+  ]);
   const contentParts = layout.elements
-    .filter((el) => !["logo", "companyName", "ticketNo", ...SKIP_ELEMENTS].includes(el))
+    .filter((el) => !headerOnly.has(el))
     .map((el) => renderElement(el, ticket, line, brand))
     .filter(Boolean)
     .join("\n");
@@ -234,7 +255,25 @@ function buildActivityTicketHtml(
     }
     .logo img { max-height: 48px; max-width: 160px; margin-bottom: 8px; }
     .company { font-size: 22px; font-weight: 700; color: ${primary}; }
-    .ticket-no { font-family: monospace; font-size: 14px; color: #64748b; margin-top: 4px; }
+    .ticket-no-large {
+      font-family: ui-monospace, monospace;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: ${primary};
+      margin-top: 8px;
+    }
+    .ticket-badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+    .ticket-badge--new { background: #dcfce7; color: #166534; border: 2px solid #86efac; }
+    .ticket-badge--rev { background: #fef3c7; color: #92400e; border: 2px solid #fcd34d; }
     .row { margin-bottom: 10px; font-size: 14px; line-height: 1.5; }
     .label { color: #64748b; font-size: 12px; text-transform: uppercase; }
     .value { font-weight: 600; font-size: 15px; }

@@ -4,6 +4,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { TicketsPage } from "@/pages/TicketsPage";
 import { NewTicketPage } from "@/pages/NewTicketPage";
+import { EditTicketPage } from "@/pages/EditTicketPage";
 import { CurrentAccountsPage } from "@/pages/CurrentAccountsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ActivityPricesPage } from "@/pages/ActivityPricesPage";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tickets" element={<TicketsPage />} />
           <Route path="/tickets/new" element={<NewTicketPage />} />
+          <Route path="/tickets/:id/edit" element={<EditTicketPage />} />
           <Route path="/current-accounts" element={<CurrentAccountsPage />} />
           <Route path="/current-accounts/:activityId" element={<CurrentAccountDetailPage />} />
           <Route path="/ledger" element={<LedgerPage />} />

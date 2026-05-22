@@ -23,7 +23,7 @@ export function TicketsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["tickets", search],
     queryFn: () => {
-      const params = new URLSearchParams({ status: "ACTIVE" });
+      const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
       return apiFetch<ListResponse>(`/tickets?${params}`);
     },
@@ -98,7 +98,14 @@ export function TicketsPage() {
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-mono text-sm text-muted">{ticket.ticketNo}</p>
+                <p className="font-mono text-lg font-bold tracking-wide text-primary">
+                  {ticket.ticketNo}
+                </p>
+                {ticket.revisionCount > 0 && (
+                  <span className="mt-0.5 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+                    REVİZE
+                  </span>
+                )}
                 <p className="font-semibold">{ticket.customerName}</p>
                 <p className="text-sm text-muted">{ticket.customerPhone}</p>
               </div>
@@ -123,7 +130,13 @@ export function TicketsPage() {
                 </span>
               )}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Link
+                to={`/tickets/${ticket.id}/edit`}
+                className="flex min-h-11 items-center justify-center rounded-lg border border-primary-border bg-primary-soft text-sm font-medium text-primary"
+              >
+                Düzenle
+              </Link>
               <button
                 type="button"
                 onClick={() =>
@@ -131,7 +144,7 @@ export function TicketsPage() {
                 }
                 className="min-h-11 rounded-lg bg-teal-700 text-sm font-medium text-white"
               >
-                Görsel Bilet
+                Görsel
               </button>
               <button
                 type="button"
@@ -142,7 +155,7 @@ export function TicketsPage() {
                 }}
                 className="min-h-11 rounded-lg border border-red-200 text-sm text-red-700"
               >
-                İptal Et
+                İptal
               </button>
             </div>
           </li>

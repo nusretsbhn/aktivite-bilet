@@ -118,6 +118,7 @@ model Ticket {
   remainingAmount Float            @default(0)
   bankAccountId   Int?
   status          TicketStatus     @default(ACTIVE)
+  revisionCount   Int              @default(0)
   notes           String?
   createdBy       Int
   createdAt       DateTime         @default(now())
