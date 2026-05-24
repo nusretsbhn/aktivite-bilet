@@ -185,6 +185,53 @@ function aggregatePaymentType(lines: ResolvedLine[]): PaymentType {
   return PaymentType.TO_PAY;
 }
 
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Bilet gelir + maliyet kayıtlarını senkronize eder (kar = gelir − maliyet) */
+async function syncTicketLedgerEntries(
+  tx: Tx,
+  params: {
+    ticketId: number;
+    ticketNos: string[];
+    finalAmount: number;
+    totalBuyCost: number;
+    createdBy: number;
+    date: Date;
+  }
+) {
+  await tx.generalLedger.deleteMany({ where: { referenceId: params.ticketId } });
+
+  const ticketLabel = params.ticketNos.join(", ");
+
+  if (params.finalAmount > 0) {
+    await tx.generalLedger.create({
+      data: {
+        type: LedgerType.INCOME,
+        category: "Bilet Geliri",
+        description: `Bilet: ${ticketLabel}`,
+        amount: params.finalAmount,
+        date: params.date,
+        referenceId: params.ticketId,
+        createdBy: params.createdBy,
+      },
+    });
+  }
+
+  if (params.totalBuyCost > 0) {
+    await tx.generalLedger.create({
+      data: {
+        type: LedgerType.EXPENSE,
+        category: "Bilet Maliyeti",
+        description: `Bilet: ${ticketLabel}`,
+        amount: -params.totalBuyCost,
+        date: params.date,
+        referenceId: params.ticketId,
+        createdBy: params.createdBy,
+      },
+    });
+  }
+}
+
 export async function createTicket(input: CreateTicketInput, createdBy: number) {
   if (input.activities.length === 0) {
     throw new AppError(400, "En az bir aktivite ekleyin");
@@ -208,6 +255,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
 
   const totalAmount = resolved.reduce((s, l) => s + l.unitPrice, 0);
   const finalAmount = totalAmount;
+  const totalBuyCost = resolved.reduce((s, l) => s + l.buyTotal, 0);
   const prepaidAmount = totalPrepaid;
   const remainingAmount = Math.max(
     0,
@@ -289,18 +337,14 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
       });
     }
 
-    if (finalAmount > 0) {
-      await tx.generalLedger.create({
-        data: {
-          type: LedgerType.INCOME,
-          category: "Bilet Geliri",
-          description: `Bilet: ${ticketNo}`,
-          amount: finalAmount,
-          referenceId: created.id,
-          createdBy,
-        },
-      });
-    }
+    await syncTicketLedgerEntries(tx, {
+      ticketId: created.id,
+      ticketNos: lineTicketNos,
+      finalAmount,
+      totalBuyCost,
+      createdBy,
+      date: created.createdAt,
+    });
 
     await activityCurrentAccountService.recordActivityTicketLineEntries(tx, {
       ticketId: created.id,
@@ -448,6 +492,7 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
 
   const totalAmount = resolved.reduce((s, l) => s + l.unitPrice, 0);
   const finalAmount = totalAmount;
+  const totalBuyCost = resolved.reduce((s, l) => s + l.buyTotal, 0);
   const prepaidAmount = totalPrepaid;
   const remainingAmount = Math.max(
     0,
@@ -525,6 +570,15 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
       include: ticketInclude,
     });
 
+    await syncTicketLedgerEntries(tx, {
+      ticketId: id,
+      ticketNos: lineTicketNos,
+      finalAmount,
+      totalBuyCost,
+      createdBy: existing.createdBy,
+      date: updated.updatedAt,
+    });
+
     await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
       issuedAt: updated.updatedAt,
       lines: resolved.map((l, i) => ({
@@ -550,9 +604,12 @@ export async function cancelTicket(id: number) {
     throw new AppError(400, "Bilet zaten iptal edilmiş");
   }
 
-  return prisma.ticket.update({
-    where: { id },
-    data: { status: TicketStatus.CANCELLED },
-    include: ticketInclude,
+  return prisma.$transaction(async (tx) => {
+    await tx.generalLedger.deleteMany({ where: { referenceId: id } });
+    return tx.ticket.update({
+      where: { id },
+      data: { status: TicketStatus.CANCELLED },
+      include: ticketInclude,
+    });
   });
 }

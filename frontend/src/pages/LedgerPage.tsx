@@ -170,7 +170,7 @@ export function LedgerPage() {
             </p>
           </div>
           <div className="rounded-lg bg-app p-2">
-            <p className="text-muted">Net</p>
+            <p className="text-muted">Kar</p>
             <p className={`font-bold ${summary.net >= 0 ? "text-primary" : "text-red-800"}`}>
               {summary.net.toLocaleString("tr-TR")} ₺
             </p>
