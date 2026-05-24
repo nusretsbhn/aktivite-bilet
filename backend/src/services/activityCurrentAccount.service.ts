@@ -54,7 +54,7 @@ export async function recordActivityTicketLineEntries(
   tx: TxClient,
   params: {
     ticketId: number;
-    tourDate: Date;
+    issuedAt: Date;
     lines: {
       ticketNo: string;
       activityId: number;
@@ -100,7 +100,7 @@ export async function recordActivityTicketLineEntries(
       description: `${line.ticketNo} — ${line.activityName}${parts.length ? ` (${parts.join(", ")})` : ""}`,
       debit,
       credit,
-      date: params.tourDate,
+      date: params.issuedAt,
     });
   }
 }
@@ -128,7 +128,7 @@ export async function replaceTicketCariEntries(
   tx: TxClient,
   ticketId: number,
   params: {
-    tourDate: Date;
+    issuedAt: Date;
     lines: {
       ticketNo: string;
       activityId: number;

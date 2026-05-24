@@ -283,7 +283,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
         data: {
           bankAccountId: input.bankAccountId,
           ticketId: created.id,
-          description: `Bilet ön ödeme: ${ticketNo}`,
+          description: `Bilet ön ödeme: ${lineTicketNos.join(", ")} — ${input.customerName}`,
           amount: totalPrepaid,
         },
       });
@@ -304,7 +304,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
 
     await activityCurrentAccountService.recordActivityTicketLineEntries(tx, {
       ticketId: created.id,
-      tourDate,
+      issuedAt: created.createdAt,
       lines: resolved.map((l, i) => ({
         ticketNo: lineTicketNos[i],
         activityId: l.activityId,
@@ -526,7 +526,7 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
     });
 
     await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
-      tourDate,
+      issuedAt: updated.updatedAt,
       lines: resolved.map((l, i) => ({
         ticketNo: lineTicketNos[i],
         activityId: l.activityId,

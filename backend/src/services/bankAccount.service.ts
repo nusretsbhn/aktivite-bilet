@@ -58,10 +58,26 @@ export async function getTransactions(
     orderBy: { transactionDate: "desc" },
   });
 
+  const ticketIds = [
+    ...new Set(transactions.map((tx) => tx.ticketId).filter((id): id is number => id != null)),
+  ];
+  const tickets =
+    ticketIds.length > 0
+      ? await prisma.ticket.findMany({
+          where: { id: { in: ticketIds } },
+          select: { id: true, customerName: true },
+        })
+      : [];
+  const customerByTicketId = new Map(tickets.map((t) => [t.id, t.customerName]));
+
   let runningBalance = 0;
   const withBalance = [...transactions].reverse().map((tx) => {
     runningBalance += tx.amount;
-    return { ...tx, balance: runningBalance };
+    return {
+      ...tx,
+      customerName: tx.ticketId ? customerByTicketId.get(tx.ticketId) ?? null : null,
+      balance: runningBalance,
+    };
   }).reverse();
 
   const summary = transactions.reduce(

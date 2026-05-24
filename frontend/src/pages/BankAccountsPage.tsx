@@ -10,6 +10,7 @@ type Transaction = {
   amount: number;
   transactionDate: string;
   ticketId?: number | null;
+  customerName?: string | null;
   balance: number;
 };
 
@@ -110,6 +111,9 @@ export function BankAccountsPage() {
               >
                 <div>
                   <p className="text-sm font-medium">{tx.description}</p>
+                  {tx.customerName && (
+                    <p className="text-sm text-fg">{tx.customerName}</p>
+                  )}
                   <p className="text-xs text-muted">
                     {new Date(tx.transactionDate).toLocaleDateString("tr-TR")}
                   </p>

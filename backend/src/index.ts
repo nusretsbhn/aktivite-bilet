@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { recalculateAllBalances } from "./services/activityCurrentAccount.service.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -25,4 +26,7 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  recalculateAllBalances().catch((err) =>
+    console.error("Cari bakiye yenileme hatası:", err)
+  );
 });
