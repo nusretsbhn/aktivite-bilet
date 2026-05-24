@@ -20,6 +20,7 @@ const activityLineSchema = z.object({
   childBuyPrice: z.number().min(0).optional(),
   infantBuyPrice: z.number().min(0).optional(),
   unitPrice: z.number().min(0).optional(),
+  buyTotal: z.number().min(0).optional(),
   prepaidAmount: z.number().min(0).optional(),
   paymentType: z.nativeEnum(PaymentType),
   remainderToOperator: z.boolean().optional(),

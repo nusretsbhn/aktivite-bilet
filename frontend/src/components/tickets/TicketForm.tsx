@@ -35,6 +35,17 @@ async function fetchPricesForDate(
   return res.prices ?? zeroPrices;
 }
 
+function calcBuyTotal(line: TicketLineItem) {
+  return calcLineTotal(
+    {
+      adultSellPrice: line.adultBuyPrice,
+      childSellPrice: line.childBuyPrice,
+      infantSellPrice: line.infantBuyPrice,
+    },
+    { adult: line.adultCount, child: line.childCount, infant: line.infantCount }
+  );
+}
+
 function applyPricesToLine(
   line: TicketLineItem,
   prices: FullPrices,
@@ -49,7 +60,10 @@ function applyPricesToLine(
     childBuyPrice: prices.childBuyPrice,
     infantBuyPrice: prices.infantBuyPrice,
   };
-  if (resetManual) next.sellTotalManual = false;
+  if (resetManual) {
+    next.sellTotalManual = false;
+    next.buyTotalManual = false;
+  }
   if (!next.sellTotalManual) {
     next.sellTotal = calcLineTotal(
       {
@@ -59,6 +73,9 @@ function applyPricesToLine(
       },
       { adult: next.adultCount, child: next.childCount, infant: next.infantCount }
     );
+  }
+  if (!next.buyTotalManual) {
+    next.buyTotal = calcBuyTotal(next);
   }
   if (next.paymentType === "FREE") next.sellTotal = 0;
   return next;
@@ -149,6 +166,14 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
     const prices = await fetchPricesForDate(activity.id, today);
     const counts = { adult: 1, child: 0, infant: 0 };
     const sellTotal = calcLineTotal(prices, counts);
+    const buyTotal = calcLineTotal(
+      {
+        adultSellPrice: prices.adultBuyPrice,
+        childSellPrice: prices.childBuyPrice,
+        infantSellPrice: prices.infantBuyPrice,
+      },
+      counts
+    );
 
     const newLine: TicketLineItem = {
       id: newLineId(),
@@ -168,6 +193,8 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
       infantBuyPrice: prices.infantBuyPrice,
       sellTotal,
       sellTotalManual: false,
+      buyTotal,
+      buyTotalManual: false,
       prepaidAmount: 0,
       prepaidManual: false,
       paymentType: "FULL_PAID",
@@ -242,6 +269,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
             childBuyPrice: l.childBuyPrice,
             infantBuyPrice: l.infantBuyPrice,
             unitPrice: l.sellTotal,
+            buyTotal: l.buyTotal,
             prepaidAmount: l.prepaidAmount,
             paymentType: l.paymentType,
             remainderToOperator: l.remainderToOperator,

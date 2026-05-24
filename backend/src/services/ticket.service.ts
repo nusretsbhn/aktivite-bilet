@@ -26,6 +26,7 @@ export type ActivityLineInput = {
   childBuyPrice?: number;
   infantBuyPrice?: number;
   unitPrice?: number;
+  buyTotal?: number;
   prepaidAmount?: number;
   paymentType: PaymentType;
   remainderToOperator?: boolean;
@@ -109,7 +110,7 @@ async function resolveLine(line: ActivityLineInput): Promise<ResolvedLine> {
     { adultSellPrice, childSellPrice, infantSellPrice },
     counts
   );
-  const buyTotal = calcActivityLineTotal(
+  const calculatedBuyTotal = calcActivityLineTotal(
     {
       adultSellPrice: adultBuyPrice,
       childSellPrice: childBuyPrice,
@@ -120,6 +121,9 @@ async function resolveLine(line: ActivityLineInput): Promise<ResolvedLine> {
 
   let unitPrice =
     line.unitPrice != null ? Math.round(line.unitPrice) : calculatedSell;
+
+  const resolvedBuyTotal =
+    line.buyTotal != null ? Math.round(line.buyTotal) : calculatedBuyTotal;
 
   if (line.paymentType === PaymentType.FREE) {
     unitPrice = 0;
@@ -161,7 +165,7 @@ async function resolveLine(line: ActivityLineInput): Promise<ResolvedLine> {
     childBuyPrice,
     infantBuyPrice,
     unitPrice,
-    buyTotal,
+    buyTotal: resolvedBuyTotal,
     prepaidAmount,
     paymentType: line.paymentType,
     remainderToOperator,

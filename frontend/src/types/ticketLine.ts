@@ -18,6 +18,8 @@ export type TicketLineItem = {
   infantBuyPrice: number;
   sellTotal: number;
   sellTotalManual: boolean;
+  buyTotal: number;
+  buyTotalManual: boolean;
   prepaidAmount: number;
   prepaidManual: boolean;
   paymentType: PaymentType;

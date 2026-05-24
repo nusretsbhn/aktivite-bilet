@@ -24,6 +24,7 @@ export type TicketDetailResponse = {
     childBuyPrice: number;
     infantBuyPrice: number;
     unitPrice: number;
+    buyTotal: number;
     prepaidAmount: number;
     paymentType: PaymentType;
     remainderToOperator: boolean;
@@ -54,6 +55,8 @@ export function mapTicketToLines(ticket: TicketDetailResponse): TicketLineItem[]
     infantBuyPrice: a.infantBuyPrice,
     sellTotal: a.unitPrice,
     sellTotalManual: true,
+    buyTotal: a.buyTotal,
+    buyTotalManual: true,
     prepaidAmount: a.prepaidAmount,
     prepaidManual: true,
     paymentType: a.paymentType,

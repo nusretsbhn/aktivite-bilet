@@ -26,6 +26,8 @@ export function ActivityLineCard({
 }: Props) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(String(line.sellTotal));
+  const [editingCost, setEditingCost] = useState(false);
+  const [costInput, setCostInput] = useState(String(line.buyTotal));
 
   const counts = {
     adult: line.adultCount,
@@ -42,7 +44,7 @@ export function ActivityLineCard({
     counts
   );
 
-  const buyTotal = calcLineTotal(
+  const calculatedBuy = calcLineTotal(
     {
       adultSellPrice: line.adultBuyPrice,
       childSellPrice: line.childBuyPrice,
@@ -59,6 +61,20 @@ export function ActivityLineCard({
           adultSellPrice: next.adultSellPrice,
           childSellPrice: next.childSellPrice,
           infantSellPrice: next.infantSellPrice,
+        },
+        {
+          adult: next.adultCount,
+          child: next.childCount,
+          infant: next.infantCount,
+        }
+      );
+    }
+    if (!next.buyTotalManual) {
+      next.buyTotal = calcLineTotal(
+        {
+          adultSellPrice: next.adultBuyPrice,
+          childSellPrice: next.childBuyPrice,
+          infantSellPrice: next.infantBuyPrice,
         },
         {
           adult: next.adultCount,
@@ -90,6 +106,16 @@ export function ActivityLineCard({
       sellTotalManual: true,
     });
     setEditingPrice(false);
+  }
+
+  function applyManualCost() {
+    const v = Math.round(Number(costInput) || 0);
+    onChange({
+      ...line,
+      buyTotal: v,
+      buyTotalManual: true,
+    });
+    setEditingCost(false);
   }
 
   const displaySell =
@@ -147,12 +173,11 @@ export function ActivityLineCard({
         </label>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted">
+      <div className="mt-2 text-xs text-muted">
         <span>
           Alış: Y {line.adultBuyPrice} · Ç {line.childBuyPrice} · B{" "}
           {line.infantBuyPrice}
         </span>
-        <span className="text-right">Maliyet: {buyTotal.toLocaleString("tr-TR")} ₺</span>
       </div>
 
       <div className="mt-3 flex justify-around border-y border-border py-2">
@@ -217,6 +242,51 @@ export function ActivityLineCard({
       </div>
       {!line.sellTotalManual && calculatedSell !== line.sellTotal && (
         <p className="text-xs text-subtle">Hesaplanan: {calculatedSell} ₺</p>
+      )}
+
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-sm text-muted">Toplam maliyet</span>
+        <div className="flex items-center gap-2">
+          {editingCost ? (
+            <>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={costInput}
+                onChange={(e) => setCostInput(e.target.value)}
+                className="w-24 rounded border px-2 py-1 text-right"
+              />
+              <button
+                type="button"
+                onClick={applyManualCost}
+                className="text-sm text-primary"
+              >
+                OK
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-lg font-bold text-foreground">
+                {line.buyTotal.toLocaleString("tr-TR")} ₺
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setCostInput(String(line.buyTotal));
+                  setEditingCost(true);
+                }}
+                className="rounded p-1 text-muted hover:bg-muted-surface"
+                title="Maliyet düzenle"
+              >
+                ✎
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {!line.buyTotalManual && calculatedBuy !== line.buyTotal && (
+        <p className="text-xs text-subtle">Hesaplanan maliyet: {calculatedBuy} ₺</p>
       )}
 
       <label className="mt-3 flex min-h-10 items-center gap-2">
