@@ -460,6 +460,36 @@ export async function getTicketById(id: number) {
   return ticket;
 }
 
+async function resolveLineTicketNosOnUpdate(
+  existing: { activityId: number; ticketNo: string }[],
+  resolved: ResolvedLine[],
+  tx: Tx
+): Promise<string[]> {
+  const pool = [...existing];
+  const lineTicketNos: string[] = [];
+
+  for (const line of resolved) {
+    const idx = pool.findIndex((e) => e.activityId === line.activityId);
+    if (idx >= 0) {
+      lineTicketNos.push(pool[idx].ticketNo);
+      pool.splice(idx, 1);
+    } else {
+      lineTicketNos.push("");
+    }
+  }
+
+  const newCount = lineTicketNos.filter((n) => !n).length;
+  if (newCount > 0) {
+    const newNos = await allocateTicketNos(newCount, tx);
+    let i = 0;
+    for (let j = 0; j < lineTicketNos.length; j++) {
+      if (!lineTicketNos[j]) lineTicketNos[j] = newNos[i++];
+    }
+  }
+
+  return lineTicketNos;
+}
+
 export async function updateTicket(id: number, input: CreateTicketInput) {
   const existing = await prisma.ticket.findUnique({
     where: { id },
@@ -518,7 +548,11 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
   return prisma.$transaction(async (tx) => {
     await tx.ticketActivity.deleteMany({ where: { ticketId: id } });
 
-    const lineTicketNos = await allocateTicketNos(resolved.length, tx);
+    const lineTicketNos = await resolveLineTicketNosOnUpdate(
+      existing.activities,
+      resolved,
+      tx
+    );
     const ticketNo = lineTicketNos[0];
 
     const updated = await tx.ticket.update({

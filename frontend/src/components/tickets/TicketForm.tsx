@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError } from "@/utils/api";
 import { ActivityLineCard } from "./ActivityLineCard";
 import { TicketImagePreview } from "./TicketImagePreview";
@@ -80,6 +80,7 @@ type Props = {
 
 export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
   const isEdit = mode === "edit" && ticketId != null;
 
@@ -263,6 +264,8 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
         ticketNo: res.ticket.ticketNo,
         activities: res.ticket.activities,
       });
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", res.ticket.id] });
     } catch (err) {
       setError(
         err instanceof ApiError

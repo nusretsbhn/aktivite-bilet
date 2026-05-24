@@ -58,7 +58,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       startDate: q.startDate as string | undefined,
       endDate: q.endDate as string | undefined,
       paymentType: q.paymentType as PaymentType | undefined,
-      status: (q.status as TicketStatus) || TicketStatus.ACTIVE,
+      status: q.status ? (q.status as TicketStatus) : undefined,
       search: q.search as string | undefined,
       page: q.page ? Number(q.page) : 1,
       limit: q.limit ? Number(q.limit) : 20,

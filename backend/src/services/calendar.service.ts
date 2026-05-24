@@ -14,7 +14,7 @@ export async function getCalendarEvents(
   end.setHours(23, 59, 59, 999);
 
   const where = {
-    status: TicketStatus.ACTIVE,
+    status: { in: [TicketStatus.ACTIVE, TicketStatus.EDITED] },
     tourDate: { gte: start, lte: end },
     ...(filters?.agencyId && { agencyId: filters.agencyId }),
     ...(filters?.paymentType && { paymentType: filters.paymentType }),
