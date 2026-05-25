@@ -233,7 +233,12 @@ function renderElement(
       return `<div class="qr"><img src="${qrUrl}" alt="QR" loading="eager" /></div>`;
     }
     case "footer": {
-      const contact = [brand.companyPhone, brand.companyEmail, brand.companyAddress]
+      const contact = [
+        brand.companyPhone,
+        brand.companyPhone2,
+        brand.companyEmail,
+        brand.companyAddress,
+      ]
         .filter(Boolean)
         .join(" · ");
       return `<div class="footer">${escapeHtml(contact || "Bu bilet elektronik ortamda oluşturulmuştur.")}</div>`;
@@ -245,6 +250,25 @@ function renderElement(
 
 function row(label: string, value: string) {
   return `<div class="row"><div class="label">${label}</div><div class="value">${escapeHtml(value)}</div></div>`;
+}
+
+function buildTicketBottomSection(brand: BrandInfo) {
+  const parts: string[] = [];
+  if (brand.tursabLogo) {
+    parts.push(
+      `<div class="tursab-logo"><img src="${brand.tursabLogo}" alt="TURSAB" /></div>`
+    );
+  }
+  if (brand.ticketInfoNote?.trim()) {
+    parts.push(
+      `<div class="info-note">
+        <div class="info-note-label">Bilgilendirme</div>
+        <div class="info-note-text">${escapeHtml(brand.ticketInfoNote.trim())}</div>
+      </div>`
+    );
+  }
+  if (!parts.length) return "";
+  return `<div class="ticket-bottom">${parts.join("")}</div>`;
 }
 
 function buildActivityTicketHtml(
@@ -363,11 +387,39 @@ function buildActivityTicketHtml(
     }
     .qr { text-align: center; margin-top: 16px; }
     .qr img { width: 100px; height: 100px; }
+    .ticket-bottom {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+    }
+    .tursab-logo img {
+      max-height: 56px;
+      max-width: 200px;
+      object-fit: contain;
+      margin-bottom: 12px;
+    }
+    .info-note {
+      text-align: left;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #64748b;
+    }
+    .info-note-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .info-note-text { white-space: pre-wrap; }
   </style>
 </head>
 <body>
   <div class="header">${headerParts.join("")}</div>
   ${contentParts}
+  ${buildTicketBottomSection(brand)}
 </body>
 </html>`;
 }

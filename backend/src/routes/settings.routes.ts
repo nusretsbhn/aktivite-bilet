@@ -11,3 +11,4 @@ settingsRouter.use(requireRoles("ADMIN"));
 settingsRouter.get("/", settingsController.get);
 settingsRouter.put("/", settingsController.update);
 settingsRouter.post("/logo", settingsController.uploadLogo);
+settingsRouter.post("/tursab-logo", settingsController.uploadTursabLogo);
