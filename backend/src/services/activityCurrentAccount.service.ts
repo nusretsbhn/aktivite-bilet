@@ -13,6 +13,40 @@ function formatPersonCounts(adult: number, child: number, infant: number) {
   return `Y${adult}/Ç${child}/B${infant}`;
 }
 
+function formatCariDescription(
+  stored: string,
+  customerName?: string | null
+): string {
+  const name = customerName?.trim();
+  if (!name) return stored;
+  if (stored.startsWith(name)) return stored;
+  return `${name} — ${stored}`;
+}
+
+function buildCariLineDescription(line: CariTicketLineInput) {
+  const sellAmount =
+    line.paymentType === PaymentType.FREE ? 0 : line.unitPrice;
+  const toPayRemainder =
+    line.paymentType === PaymentType.TO_PAY
+      ? Math.max(0, sellAmount - line.prepaidAmount)
+      : 0;
+
+  const parts: string[] = [];
+  if (line.buyTotal > 0) {
+    parts.push(`Maliyet ${line.buyTotal.toLocaleString("tr-TR")} ₺`);
+  }
+  if (
+    line.paymentType === PaymentType.TO_PAY &&
+    !line.remainderToOperator &&
+    toPayRemainder > 0
+  ) {
+    parts.push(`To Pay ${toPayRemainder.toLocaleString("tr-TR")} ₺`);
+  }
+
+  const amounts = parts.length ? ` (${parts.join(", ")})` : "";
+  return `${line.customerName} — ${line.ticketNo} — ${line.activityName}${amounts}`;
+}
+
 export type CariTicketLineInput = {
   ticketNo: string;
   activityId: number;
@@ -102,16 +136,10 @@ export async function recordActivityTicketLineEntries(
 
     if (debit <= 0 && credit <= 0) continue;
 
-    const parts: string[] = [];
-    if (debit > 0) parts.push(`Maliyet ${debit.toLocaleString("tr-TR")} ₺`);
-    if (credit > 0 && toPayRemainder > 0) {
-      parts.push(`To Pay ${toPayRemainder.toLocaleString("tr-TR")} ₺`);
-    }
-
     await addEntry(tx, {
       activityId: line.activityId,
       ticketId: params.ticketId,
-      description: `${line.customerName}${parts.length ? ` (${parts.join(", ")})` : ""}`,
+      description: buildCariLineDescription(line),
       debit,
       credit,
       date: params.issuedAt,
@@ -222,6 +250,7 @@ export async function listByActivity(
     include: {
       ticket: {
         select: {
+          customerName: true,
           activities: {
             where: { activityId },
             select: { adultCount: true, childCount: true, infantCount: true },
@@ -239,7 +268,7 @@ export async function listByActivity(
       : null;
     return {
       id: e.id,
-      description: e.description,
+      description: formatCariDescription(e.description, e.ticket?.customerName),
       debit: e.debit,
       credit: e.credit,
       balance: e.balance,
