@@ -61,6 +61,7 @@ model ActivityCurrentAccount {
   balance     Float
   date        DateTime @default(now())
   activity    Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  ticket      Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 }
 
 model ActivityPrice {
@@ -123,10 +124,11 @@ model Ticket {
   createdBy       Int
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  activities      TicketActivity[]
-  user            User             @relation(fields: [createdBy], references: [id])
-  agency          Agency?          @relation(fields: [agencyId], references: [id])
-  bankAccount     BankAccount?     @relation(fields: [bankAccountId], references: [id])
+  activities            TicketActivity[]
+  currentAccountEntries ActivityCurrentAccount[]
+  user                  User             @relation(fields: [createdBy], references: [id])
+  agency                Agency?          @relation(fields: [agencyId], references: [id])
+  bankAccount           BankAccount?     @relation(fields: [bankAccountId], references: [id])
 }
 
 enum PaymentType {

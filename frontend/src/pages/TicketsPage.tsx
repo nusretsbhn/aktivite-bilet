@@ -13,16 +13,20 @@ type ListResponse = {
   summary: { count: number; totalAmount: number; prepaid: number; remaining: number };
 };
 
+type StatusFilter = "active" | "cancelled";
+
 export function TicketsPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [previewTicketId, setPreviewTicketId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["tickets", search],
+    queryKey: ["tickets", search, statusFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
+      if (statusFilter === "cancelled") params.set("status", "CANCELLED");
       return apiFetch<ListResponse>(`/tickets?${params}`);
     },
   });
@@ -30,7 +34,11 @@ export function TicketsPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) =>
       apiFetch(`/tickets/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tickets"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["current-accounts-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["current-account"] });
+    },
   });
 
   const formatDate = (d: string) =>
@@ -63,6 +71,28 @@ export function TicketsPage() {
         </Link>
       </div>
 
+      <div className="mt-3 flex gap-2">
+        {(
+          [
+            { id: "active" as const, label: "Aktif" },
+            { id: "cancelled" as const, label: "İptal" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setStatusFilter(tab.id)}
+            className={`min-h-10 flex-1 rounded-lg border text-sm font-medium ${
+              statusFilter === tab.id
+                ? "border-primary bg-primary-soft text-primary"
+                : "border-border bg-card text-muted"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <input
         type="search"
         placeholder="Ad, telefon, bilet no…"
@@ -88,17 +118,26 @@ export function TicketsPage() {
       {isLoading && <p className="mt-4 text-muted">Yükleniyor…</p>}
 
       <ul className="mt-4 space-y-3">
-        {data?.items.map((ticket) => (
+        {data?.items.map((ticket) => {
+          const isCancelled = ticket.status === "CANCELLED";
+          return (
           <li
             key={ticket.id}
-            className="rounded-xl border border-border bg-card p-4 shadow-sm"
+            className={`rounded-xl border border-border bg-card p-4 shadow-sm ${
+              isCancelled ? "opacity-75" : ""
+            }`}
           >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-mono text-lg font-bold tracking-wide text-primary">
                   {formatTicketNumbers(ticket)}
                 </p>
-                {ticket.revisionCount > 0 && (
+                {isCancelled && (
+                  <span className="mt-0.5 inline-block rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-800">
+                    İPTAL
+                  </span>
+                )}
+                {!isCancelled && ticket.revisionCount > 0 && (
                   <span className="mt-0.5 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
                     REVİZE
                   </span>
@@ -127,13 +166,15 @@ export function TicketsPage() {
                 </span>
               )}
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <Link
-                to={`/tickets/${ticket.id}/edit`}
-                className="flex min-h-11 items-center justify-center rounded-lg border border-primary-border bg-primary-soft text-sm font-medium text-primary"
-              >
-                Düzenle
-              </Link>
+            <div className={`mt-3 grid gap-2 ${isCancelled ? "grid-cols-1" : "grid-cols-3"}`}>
+              {!isCancelled && (
+                <Link
+                  to={`/tickets/${ticket.id}/edit`}
+                  className="flex min-h-11 items-center justify-center rounded-lg border border-primary-border bg-primary-soft text-sm font-medium text-primary"
+                >
+                  Düzenle
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => setPreviewTicketId(ticket.id)}
@@ -141,20 +182,23 @@ export function TicketsPage() {
               >
                 Görsel
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm("Bu bilet iptal edilsin mi?")) {
-                    cancelMutation.mutate(ticket.id);
-                  }
-                }}
-                className="min-h-11 rounded-lg border border-red-200 text-sm text-red-700"
-              >
-                İptal
-              </button>
+              {!isCancelled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Bu bilet iptal edilsin mi? Cari tutarları da silinir.")) {
+                      cancelMutation.mutate(ticket.id);
+                    }
+                  }}
+                  className="min-h-11 rounded-lg border border-red-200 text-sm text-red-700"
+                >
+                  İptal
+                </button>
+              )}
             </div>
           </li>
-        ))}
+        );
+        })}
       </ul>
 
       {!isLoading && data?.items.length === 0 && (

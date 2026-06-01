@@ -357,6 +357,10 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
         ticketNo: lineTicketNos[i],
         activityId: l.activityId,
         activityName: l.activityDisplayName,
+        customerName: input.customerName,
+        adultCount: l.adultCount,
+        childCount: l.childCount,
+        infantCount: l.infantCount,
         buyTotal: l.buyTotal,
         unitPrice: l.unitPrice,
         prepaidAmount: l.prepaidAmount,
@@ -623,6 +627,10 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
         ticketNo: lineTicketNos[i],
         activityId: l.activityId,
         activityName: l.activityDisplayName,
+        customerName: input.customerName,
+        adultCount: l.adultCount,
+        childCount: l.childCount,
+        infantCount: l.infantCount,
         buyTotal: l.buyTotal,
         unitPrice: l.unitPrice,
         prepaidAmount: l.prepaidAmount,
@@ -644,6 +652,7 @@ export async function cancelTicket(id: number) {
 
   return prisma.$transaction(async (tx) => {
     await tx.generalLedger.deleteMany({ where: { referenceId: id } });
+    await activityCurrentAccountService.removeTicketCariEntries(tx, id);
     return tx.ticket.update({
       where: { id },
       data: { status: TicketStatus.CANCELLED },

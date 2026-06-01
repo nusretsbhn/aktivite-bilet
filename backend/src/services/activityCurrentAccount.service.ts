@@ -1,9 +1,32 @@
-import { PaymentType, type Prisma } from "@prisma/client";
+import { PaymentType, TicketStatus, type Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma.js";
 import { AppError } from "../middlewares/errorHandler.js";
 import * as activityService from "./activity.service.js";
 
 type TxClient = Prisma.TransactionClient;
+
+const activeTicketCariWhere: Prisma.ActivityCurrentAccountWhereInput = {
+  OR: [{ ticketId: null }, { ticket: { status: { not: TicketStatus.CANCELLED } } }],
+};
+
+function formatPersonCounts(adult: number, child: number, infant: number) {
+  return `Y${adult}/Ç${child}/B${infant}`;
+}
+
+export type CariTicketLineInput = {
+  ticketNo: string;
+  activityId: number;
+  activityName: string;
+  customerName: string;
+  adultCount: number;
+  childCount: number;
+  infantCount: number;
+  buyTotal: number;
+  unitPrice: number;
+  prepaidAmount: number;
+  paymentType: PaymentType;
+  remainderToOperator?: boolean;
+};
 
 async function getLastBalance(tx: TxClient, activityId: number): Promise<number> {
   const last = await tx.activityCurrentAccount.findFirst({
@@ -55,16 +78,7 @@ export async function recordActivityTicketLineEntries(
   params: {
     ticketId: number;
     issuedAt: Date;
-    lines: {
-      ticketNo: string;
-      activityId: number;
-      activityName: string;
-      buyTotal: number;
-      unitPrice: number;
-      prepaidAmount: number;
-      paymentType: PaymentType;
-      remainderToOperator?: boolean;
-    }[];
+    lines: CariTicketLineInput[];
   }
 ) {
   for (const line of params.lines) {
@@ -97,11 +111,26 @@ export async function recordActivityTicketLineEntries(
     await addEntry(tx, {
       activityId: line.activityId,
       ticketId: params.ticketId,
-      description: `${line.ticketNo} — ${line.activityName}${parts.length ? ` (${parts.join(", ")})` : ""}`,
+      description: `${line.customerName}${parts.length ? ` (${parts.join(", ")})` : ""}`,
       debit,
       credit,
       date: params.issuedAt,
     });
+  }
+}
+
+/** İptal veya düzenleme öncesi bilete bağlı cari satırlarını kaldırır */
+export async function removeTicketCariEntries(tx: TxClient, ticketId: number) {
+  const old = await tx.activityCurrentAccount.findMany({
+    where: { ticketId },
+    select: { activityId: true },
+  });
+  const activityIds = new Set(old.map((e) => e.activityId));
+
+  await tx.activityCurrentAccount.deleteMany({ where: { ticketId } });
+
+  for (const activityId of activityIds) {
+    await recalculateBalances(tx, activityId);
   }
 }
 
@@ -129,37 +158,10 @@ export async function replaceTicketCariEntries(
   ticketId: number,
   params: {
     issuedAt: Date;
-    lines: {
-      ticketNo: string;
-      activityId: number;
-      activityName: string;
-      buyTotal: number;
-      unitPrice: number;
-      prepaidAmount: number;
-      paymentType: PaymentType;
-      remainderToOperator?: boolean;
-    }[];
+    lines: CariTicketLineInput[];
   }
 ) {
-  const old = await tx.activityCurrentAccount.findMany({
-    where: { ticketId },
-    select: { activityId: true },
-  });
-  const activityIds = new Set(old.map((e) => e.activityId));
-
-  await tx.activityCurrentAccount.deleteMany({ where: { ticketId } });
-
-  for (const activityId of activityIds) {
-    await recalculateBalances(tx, activityId);
-  }
-
-  for (const line of params.lines) {
-    activityIds.add(line.activityId);
-  }
-  for (const activityId of activityIds) {
-    await recalculateBalances(tx, activityId);
-  }
-
+  await removeTicketCariEntries(tx, ticketId);
   await recordActivityTicketLineEntries(tx, { ticketId, ...params });
 }
 
@@ -170,11 +172,11 @@ export async function getSummary() {
     activities.map(async (activity) => {
       const [last, agg] = await Promise.all([
         prisma.activityCurrentAccount.findFirst({
-          where: { activityId: activity.id },
+          where: { activityId: activity.id, ...activeTicketCariWhere },
           orderBy: [{ date: "desc" }, { id: "desc" }],
         }),
         prisma.activityCurrentAccount.aggregate({
-          where: { activityId: activity.id },
+          where: { activityId: activity.id, ...activeTicketCariWhere },
           _sum: { debit: true, credit: true },
         }),
       ]);
@@ -199,7 +201,10 @@ export async function listByActivity(
 ) {
   const activity = await activityService.getById(activityId);
 
-  const where: Prisma.ActivityCurrentAccountWhereInput = { activityId };
+  const where: Prisma.ActivityCurrentAccountWhereInput = {
+    activityId,
+    ...activeTicketCariWhere,
+  };
 
   if (query?.startDate || query?.endDate) {
     where.date = {};
@@ -211,9 +216,37 @@ export async function listByActivity(
     }
   }
 
-  const entries = await prisma.activityCurrentAccount.findMany({
+  const rows = await prisma.activityCurrentAccount.findMany({
     where,
     orderBy: [{ date: "desc" }, { id: "desc" }],
+    include: {
+      ticket: {
+        select: {
+          activities: {
+            where: { activityId },
+            select: { adultCount: true, childCount: true, infantCount: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  const entries = rows.map((e) => {
+    const line = e.ticket?.activities[0];
+    const personCounts = line
+      ? formatPersonCounts(line.adultCount, line.childCount, line.infantCount)
+      : null;
+    return {
+      id: e.id,
+      description: e.description,
+      debit: e.debit,
+      credit: e.credit,
+      balance: e.balance,
+      date: e.date,
+      ticketId: e.ticketId,
+      personCounts,
+    };
   });
 
   const totals = entries.reduce(

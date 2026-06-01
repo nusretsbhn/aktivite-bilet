@@ -8,6 +8,7 @@ import { inputClass } from "@/lib/ui";
 type Entry = {
   id: number;
   description: string;
+  personCounts: string | null;
   debit: number;
   credit: number;
   balance: number;
@@ -155,6 +156,7 @@ export function CurrentAccountDetailPage() {
             <tr className="border-b text-left text-muted">
               <th className="py-2">Tarih</th>
               <th>Açıklama</th>
+              <th className="whitespace-nowrap">Kişi</th>
               <th className="text-right">Borç</th>
               <th className="text-right">Alacak</th>
               <th className="text-right">Bakiye</th>
@@ -167,6 +169,9 @@ export function CurrentAccountDetailPage() {
                   {new Date(e.date).toLocaleDateString("tr-TR")}
                 </td>
                 <td>{e.description}</td>
+                <td className="whitespace-nowrap text-muted">
+                  {e.personCounts ?? "—"}
+                </td>
                 <td className="text-right text-red-700">
                   {e.debit > 0 ? e.debit.toLocaleString("tr-TR") : "-"}
                 </td>
