@@ -95,6 +95,12 @@ npm run db:seed
 **Backend Postgres’e bağlanamıyor**  
 - `DATABASE_URL` host kısmı: aynı projede `postgres` veya panelin “Internal host” değeri.
 
+**Frontend turuncu / “Service is not reachable”**  
+- Frontend servisi ayrı deploy edilmeli; backend log’u yeşil olsa bile site açılmaz.  
+- **Port:** `80` (EasyPanel → frontend servisi → Port).  
+- **Environment:** `BACKEND_UPSTREAM=http://aktivite-bilet_backend:3001` (`beckend` yazım hatası olmasın).  
+- Frontend → **Dağıtımlar** → son build log’unda hata var mı bakın → **Dağıt**.
+
 **API 502**  
 - `BACKEND_UPSTREAM` yanlış → backend servis adı ve port `3001`.
 
