@@ -4,13 +4,21 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Docker/EasyPanel iç DNS — backend yeniden başlayınca IP değişir;
+    # proxy_pass değişkende olmalı yoksa nginx eski IP'ye takılır (502).
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
     location /api/ {
-        proxy_pass ${BACKEND_UPSTREAM}/api/;
+        set $backend_upstream ${BACKEND_UPSTREAM};
+        proxy_pass $backend_upstream/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
     }
 
     location / {
