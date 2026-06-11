@@ -10,7 +10,8 @@ server {
 
     location /api/ {
         set $backend_upstream ${BACKEND_UPSTREAM};
-        proxy_pass $backend_upstream/api/;
+        # Tam istek yolunu ilet (/api/auth/login). /api/ eklemeyin — çift /api/api 401 verir.
+        proxy_pass $backend_upstream$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

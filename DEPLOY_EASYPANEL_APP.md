@@ -59,10 +59,12 @@ npm run db:seed
 5. **Environment:**
 
    ```
-   BACKEND_UPSTREAM=http://aktivite-bilet_backend:3001
+   BACKEND_UPSTREAM=http://aktivite-bilet_beckend:3001
    ```
 
-   EasyPanel iç host genelde `proje_servis` formatındadır (Postgres: `aktivite-bilet_postgres` gibi). Panelde backend **Internal URL** farklıysa onu kullanın. `beckend` yazım hatası yapmayın.
+   **Önemli:** Sadece `http://HOST:3001` — sonuna `/api` eklemeyin (çift `/api/api` → giriş 401 verir).
+
+   EasyPanel iç host genelde `proje_servis` formatındadır. Servis adınız `beckend` ise host `aktivite-bilet_beckend` olmalı.
 
    Backend yeniden deploy edildikten sonra API 502 verirse frontend’i de bir kez **Dağıt** (nginx artık DNS’i dinamik çözümler).
 

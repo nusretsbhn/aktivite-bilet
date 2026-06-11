@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { authRouter } from "./auth.routes.js";
 import { ticketRouter } from "./ticket.routes.js";
-import { lookupRouter } from "./lookup.routes.js";
 import { bankAccountRouter } from "./bankAccount.routes.js";
 import { ledgerRouter } from "./ledger.routes.js";
 import { currentAccountRouter } from "./currentAccount.routes.js";
@@ -23,4 +22,3 @@ apiRouter.use("/users", userRouter);
 apiRouter.use("/activities", activityRouter);
 apiRouter.use("/activity-prices", activityPriceRouter);
 apiRouter.use("/ticket-templates", ticketTemplateRouter);
-apiRouter.use(lookupRouter);

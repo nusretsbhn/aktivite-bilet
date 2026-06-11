@@ -19,9 +19,12 @@ app.use(
 );
 app.use(express.json({ limit: "5mb" }));
 
-app.get("/health", (_req, res) => {
+function healthHandler(_req: express.Request, res: express.Response) {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+}
+
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 app.use("/api", apiRouter);
 
