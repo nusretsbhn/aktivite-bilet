@@ -12,6 +12,12 @@ export function useAuthInit() {
   const logout = useAuthStore((s) => s.logout);
 
   useEffect(() => {
+    const onLogout = () => logout();
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, [logout]);
+
+  useEffect(() => {
     if (!token || user) return;
 
     apiFetch<MeResponse>("/auth/me")
@@ -26,9 +32,11 @@ export function useAuthInit() {
 
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
   return async (email: string, password: string) => {
+    logout();
     const data = await apiFetch<{ token: string; user: MeResponse["user"] }>(
       "/auth/login",
       {

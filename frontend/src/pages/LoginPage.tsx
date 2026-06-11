@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { ApiError } from "@/utils/api";
+import { ApiError, apiFetch } from "@/utils/api";
 import { useAuthStore } from "@/store/authStore";
 import { useLogin } from "@/hooks/useAuth";
 import { inputClass } from "@/lib/ui";
 
 export function LoginPage() {
   const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const logout = useAuthStore((s) => s.logout);
   const login = useLogin();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/calendar";
@@ -15,8 +18,40 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(Boolean(token && !user));
 
-  if (token) {
+  useEffect(() => {
+    if (!token || user) {
+      setCheckingSession(false);
+      return;
+    }
+
+    let cancelled = false;
+    apiFetch<{ user: { id: number; name: string; email: string; role: string } }>("/auth/me")
+      .then((data) => {
+        if (!cancelled) setAuth(token, data.user);
+      })
+      .catch(() => {
+        if (!cancelled) logout();
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, user, setAuth, logout]);
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-app text-muted">
+        Oturum kontrol ediliyor…
+      </div>
+    );
+  }
+
+  if (token && user) {
     return <Navigate to={from} replace />;
   }
 
