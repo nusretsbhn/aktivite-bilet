@@ -175,38 +175,14 @@ export function ActivityLineCard({
         </label>
       </div>
 
-      <div className="mt-2 text-xs text-muted">
-        {manualPricing ? (
-          <div className="grid grid-cols-3 gap-2">
-            {(
-              [
-                ["Y satış", "adultSellPrice"],
-                ["Ç satış", "childSellPrice"],
-                ["B satış", "infantSellPrice"],
-              ] as const
-            ).map(([label, key]) => (
-              <label key={key} className="block">
-                <span className="text-subtle">{label}</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={line[key]}
-                  onChange={(e) =>
-                    update({ [key]: Math.round(Number(e.target.value) || 0) })
-                  }
-                  className={`mt-0.5 w-full ${inputClass}`}
-                />
-              </label>
-            ))}
-          </div>
-        ) : (
+      {!manualPricing && (
+        <div className="mt-2 text-xs text-muted">
           <span>
             Alış: Y {line.adultBuyPrice} · Ç {line.childBuyPrice} · B{" "}
             {line.infantBuyPrice}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mt-3 flex justify-around border-y border-border py-2">
         <PersonCounter
@@ -350,37 +326,39 @@ export function ActivityLineCard({
         rows={2}
       />
 
-      <div className="mt-3">
-        <p className="mb-1 text-xs font-medium text-muted">Ödeme tipi</p>
-        <div className="grid grid-cols-1 gap-1">
-          {PAYMENT_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() =>
-                update({
-                  paymentType: opt.value as PaymentType,
-                  remainderToOperator: false,
-                  sellTotal:
-                    opt.value === "FREE"
-                      ? 0
-                      : line.sellTotalManual
-                        ? line.sellTotal
-                        : calculatedSell,
-                })
-              }
-              className={`rounded-lg border px-2 py-2 text-left text-xs ${
-                line.paymentType === opt.value
-                  ? "border-teal-700 bg-primary-soft"
-                  : "border-border"
-              }`}
-            >
-              <span className="font-semibold">{opt.label}</span>
-              <span className="block text-muted">{opt.hint}</span>
-            </button>
-          ))}
+      {!manualPricing && (
+        <div className="mt-3">
+          <p className="mb-1 text-xs font-medium text-muted">Ödeme tipi</p>
+          <div className="grid grid-cols-1 gap-1">
+            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  update({
+                    paymentType: opt.value as PaymentType,
+                    remainderToOperator: false,
+                    sellTotal:
+                      opt.value === "FREE"
+                        ? 0
+                        : line.sellTotalManual
+                          ? line.sellTotal
+                          : calculatedSell,
+                  })
+                }
+                className={`rounded-lg border px-2 py-2 text-left text-xs ${
+                  line.paymentType === opt.value
+                    ? "border-teal-700 bg-primary-soft"
+                    : "border-border"
+                }`}
+              >
+                <span className="font-semibold">{opt.label}</span>
+                <span className="block text-muted">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {!manualPricing && (
         <div className="mt-3 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">

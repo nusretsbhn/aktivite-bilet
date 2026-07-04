@@ -199,7 +199,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
       childBuyPrice: prices.childBuyPrice,
       infantBuyPrice: prices.infantBuyPrice,
       sellTotal,
-      sellTotalManual: false,
+      sellTotalManual: manualPricing,
       buyTotal,
       buyTotalManual: manualPricing,
       prepaidAmount: 0,
