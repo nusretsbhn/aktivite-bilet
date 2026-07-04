@@ -11,6 +11,7 @@ import { calcActivityLineTotal } from "../utils/pricing.js";
 import * as activityService from "./activity.service.js";
 import * as activityPriceService from "./activityPrice.service.js";
 import * as activityCurrentAccountService from "./activityCurrentAccount.service.js";
+import { isHotelCreator, ticketInclude } from "../utils/ticketAccess.js";
 
 export type ActivityLineInput = {
   activityId: number;
@@ -51,6 +52,7 @@ export type ListTicketsQuery = {
   search?: string;
   page?: number;
   limit?: number;
+  createdBy?: number;
 };
 
 type ResolvedLine = {
@@ -247,7 +249,9 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
   }
 
   const totalPrepaid = resolved.reduce((s, l) => s + l.prepaidAmount, 0);
-  if (totalPrepaid > 0 && !input.bankAccountId) {
+  const hotelTicket = await isHotelCreator(createdBy);
+
+  if (totalPrepaid > 0 && !input.bankAccountId && !hotelTicket) {
     throw new AppError(400, "Ön ödeme için banka/kasa hesabı seçin");
   }
 
@@ -330,7 +334,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
       include: ticketInclude,
     });
 
-    if (totalPrepaid > 0 && input.bankAccountId) {
+    if (!hotelTicket && totalPrepaid > 0 && input.bankAccountId) {
       await tx.bankTransaction.create({
         data: {
           bankAccountId: input.bankAccountId,
@@ -341,33 +345,35 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
       });
     }
 
-    await syncTicketLedgerEntries(tx, {
-      ticketId: created.id,
-      ticketNos: lineTicketNos,
-      finalAmount,
-      totalBuyCost,
-      createdBy,
-      date: created.createdAt,
-    });
+    if (!hotelTicket) {
+      await syncTicketLedgerEntries(tx, {
+        ticketId: created.id,
+        ticketNos: lineTicketNos,
+        finalAmount,
+        totalBuyCost,
+        createdBy,
+        date: created.createdAt,
+      });
 
-    await activityCurrentAccountService.recordActivityTicketLineEntries(tx, {
-      ticketId: created.id,
-      issuedAt: created.createdAt,
-      lines: resolved.map((l, i) => ({
-        ticketNo: lineTicketNos[i],
-        activityId: l.activityId,
-        activityName: l.activityDisplayName,
-        customerName: input.customerName,
-        adultCount: l.adultCount,
-        childCount: l.childCount,
-        infantCount: l.infantCount,
-        buyTotal: l.buyTotal,
-        unitPrice: l.unitPrice,
-        prepaidAmount: l.prepaidAmount,
-        paymentType: l.paymentType,
-        remainderToOperator: l.remainderToOperator,
-      })),
-    });
+      await activityCurrentAccountService.recordActivityTicketLineEntries(tx, {
+        ticketId: created.id,
+        issuedAt: created.createdAt,
+        lines: resolved.map((l, i) => ({
+          ticketNo: lineTicketNos[i],
+          activityId: l.activityId,
+          activityName: l.activityDisplayName,
+          customerName: input.customerName,
+          adultCount: l.adultCount,
+          childCount: l.childCount,
+          infantCount: l.infantCount,
+          buyTotal: l.buyTotal,
+          unitPrice: l.unitPrice,
+          prepaidAmount: l.prepaidAmount,
+          paymentType: l.paymentType,
+          remainderToOperator: l.remainderToOperator,
+        })),
+      });
+    }
 
     return created;
   });
@@ -375,17 +381,7 @@ export async function createTicket(input: CreateTicketInput, createdBy: number) 
   return ticket;
 }
 
-const ticketInclude = {
-  activities: {
-    include: {
-      activity: {
-        select: { id: true, name: true, displayName: true },
-      },
-    },
-  },
-  bankAccount: { select: { id: true, name: true } },
-  user: { select: { id: true, name: true } },
-} satisfies Prisma.TicketInclude;
+export { getTicketForUser } from "../utils/ticketAccess.js";
 
 export async function listTickets(query: ListTicketsQuery) {
   const page = query.page ?? 1;
@@ -409,6 +405,10 @@ export async function listTickets(query: ListTicketsQuery) {
       end.setHours(23, 59, 59, 999);
       where.tourDate.lte = end;
     }
+  }
+
+  if (query.createdBy != null) {
+    where.createdBy = query.createdBy;
   }
 
   if (query.search?.trim()) {
@@ -498,12 +498,19 @@ async function resolveLineTicketNosOnUpdate(
   return lineTicketNos;
 }
 
-export async function updateTicket(id: number, input: CreateTicketInput) {
+export async function updateTicket(
+  id: number,
+  input: CreateTicketInput,
+  actor?: { userId: number; role: string }
+) {
   const existing = await prisma.ticket.findUnique({
     where: { id },
     include: { activities: true },
   });
   if (!existing) throw new AppError(404, "Bilet bulunamadı");
+  if (actor?.role === "HOTEL" && existing.createdBy !== actor.userId) {
+    throw new AppError(403, "Bu bileti düzenleme yetkiniz yok");
+  }
   if (existing.status === TicketStatus.CANCELLED) {
     throw new AppError(400, "İptal edilmiş bilet düzenlenemez");
   }
@@ -552,6 +559,7 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
 
   const bankAccountId = input.bankAccountId ?? existing.bankAccountId;
   const revisionCount = existing.revisionCount + 1;
+  const creatorIsHotel = await isHotelCreator(existing.createdBy);
 
   return prisma.$transaction(async (tx) => {
     await tx.ticketActivity.deleteMany({ where: { ticketId: id } });
@@ -612,47 +620,58 @@ export async function updateTicket(id: number, input: CreateTicketInput) {
       include: ticketInclude,
     });
 
-    await syncTicketLedgerEntries(tx, {
-      ticketId: id,
-      ticketNos: lineTicketNos,
-      finalAmount,
-      totalBuyCost,
-      createdBy: existing.createdBy,
-      date: updated.updatedAt,
-    });
+    if (!creatorIsHotel) {
+      await syncTicketLedgerEntries(tx, {
+        ticketId: id,
+        ticketNos: lineTicketNos,
+        finalAmount,
+        totalBuyCost,
+        createdBy: existing.createdBy,
+        date: updated.updatedAt,
+      });
 
-    await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
-      issuedAt: updated.updatedAt,
-      lines: resolved.map((l, i) => ({
-        ticketNo: lineTicketNos[i],
-        activityId: l.activityId,
-        activityName: l.activityDisplayName,
-        customerName: input.customerName,
-        adultCount: l.adultCount,
-        childCount: l.childCount,
-        infantCount: l.infantCount,
-        buyTotal: l.buyTotal,
-        unitPrice: l.unitPrice,
-        prepaidAmount: l.prepaidAmount,
-        paymentType: l.paymentType,
-        remainderToOperator: l.remainderToOperator,
-      })),
-    });
+      await activityCurrentAccountService.replaceTicketCariEntries(tx, id, {
+        issuedAt: updated.updatedAt,
+        lines: resolved.map((l, i) => ({
+          ticketNo: lineTicketNos[i],
+          activityId: l.activityId,
+          activityName: l.activityDisplayName,
+          customerName: input.customerName,
+          adultCount: l.adultCount,
+          childCount: l.childCount,
+          infantCount: l.infantCount,
+          buyTotal: l.buyTotal,
+          unitPrice: l.unitPrice,
+          prepaidAmount: l.prepaidAmount,
+          paymentType: l.paymentType,
+          remainderToOperator: l.remainderToOperator,
+        })),
+      });
+    }
 
     return updated;
   });
 }
 
-export async function cancelTicket(id: number) {
+export async function cancelTicket(
+  id: number,
+  actor?: { userId: number; role: string }
+) {
   const ticket = await prisma.ticket.findUnique({ where: { id } });
   if (!ticket) throw new AppError(404, "Bilet bulunamadı");
+  if (actor?.role === "HOTEL" && ticket.createdBy !== actor.userId) {
+    throw new AppError(403, "Bu bileti iptal etme yetkiniz yok");
+  }
   if (ticket.status === TicketStatus.CANCELLED) {
     throw new AppError(400, "Bilet zaten iptal edilmiş");
   }
 
   return prisma.$transaction(async (tx) => {
-    await tx.generalLedger.deleteMany({ where: { referenceId: id } });
-    await activityCurrentAccountService.removeTicketCariEntries(tx, id);
+    const creatorIsHotel = await isHotelCreator(ticket.createdBy);
+    if (!creatorIsHotel) {
+      await tx.generalLedger.deleteMany({ where: { referenceId: id } });
+      await activityCurrentAccountService.removeTicketCariEntries(tx, id);
+    }
     return tx.ticket.update({
       where: { id },
       data: { status: TicketStatus.CANCELLED },

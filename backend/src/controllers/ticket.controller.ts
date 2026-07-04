@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PaymentType, TicketStatus } from "@prisma/client";
 import { AppError } from "../middlewares/errorHandler.js";
 import * as ticketService from "../services/ticket.service.js";
+import { getTicketForUser } from "../utils/ticketAccess.js";
 import * as ticketImageService from "../services/ticketImage.service.js";
 import { contentDisposition } from "../utils/contentDisposition.js";
 
@@ -54,6 +55,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const q = req.query;
     const result = await ticketService.listTickets({
       startDate: q.startDate as string | undefined,
@@ -63,6 +65,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       search: q.search as string | undefined,
       page: q.page ? Number(q.page) : 1,
       limit: q.limit ? Number(q.limit) : 20,
+      createdBy: req.user.role === "HOTEL" ? req.user.userId : undefined,
     });
     res.json(result);
   } catch (err) {
@@ -72,8 +75,10 @@ export async function list(req: Request, res: Response, next: NextFunction) {
 
 export async function listImages(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const id = Number(req.params.id);
     if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
+    await getTicketForUser(id, req.user);
     const images = await ticketImageService.listActivityImages(id);
     res.json({ images });
   } catch (err) {
@@ -83,6 +88,7 @@ export async function listImages(req: Request, res: Response, next: NextFunction
 
 export async function getImage(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const id = Number(req.params.id);
     if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
 
@@ -90,6 +96,8 @@ export async function getImage(req: Request, res: Response, next: NextFunction) 
     if (Number.isNaN(lineId)) {
       throw new AppError(400, "activityLineId gerekli");
     }
+
+    await getTicketForUser(id, req.user);
 
     const format = req.query.format === "pdf" ? "pdf" : "png";
     const { buffer, contentType, filename } =
@@ -105,9 +113,10 @@ export async function getImage(req: Request, res: Response, next: NextFunction) 
 
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const id = Number(req.params.id);
     if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
-    const ticket = await ticketService.getTicketById(id);
+    const ticket = await getTicketForUser(id, req.user);
     res.json({ ticket });
   } catch (err) {
     next(err);
@@ -116,13 +125,14 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 
 export async function update(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const id = Number(req.params.id);
     if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
     const parsed = createTicketSchema.safeParse(req.body);
     if (!parsed.success) {
       throw new AppError(400, parsed.error.errors[0]?.message ?? "Geçersiz veri");
     }
-    const ticket = await ticketService.updateTicket(id, parsed.data);
+    const ticket = await ticketService.updateTicket(id, parsed.data, req.user);
     res.json({ ticket });
   } catch (err) {
     next(err);
@@ -131,9 +141,10 @@ export async function update(req: Request, res: Response, next: NextFunction) {
 
 export async function cancel(req: Request, res: Response, next: NextFunction) {
   try {
+    if (!req.user) throw new AppError(401, "Yetkilendirme gerekli");
     const id = Number(req.params.id);
     if (Number.isNaN(id)) throw new AppError(400, "Geçersiz bilet id");
-    const ticket = await ticketService.cancelTicket(id);
+    const ticket = await ticketService.cancelTicket(id, req.user);
     res.json({ ticket });
   } catch (err) {
     next(err);

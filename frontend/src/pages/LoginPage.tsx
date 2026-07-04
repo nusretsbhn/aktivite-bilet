@@ -5,14 +5,17 @@ import { useAuthStore } from "@/store/authStore";
 import { useLogin } from "@/hooks/useAuth";
 import { inputClass } from "@/lib/ui";
 
+import { useHomePath } from "@/hooks/useRole";
+
 export function LoginPage() {
   const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
+  const home = useHomePath();
   const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
   const login = useLogin();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/calendar";
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? home;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +30,7 @@ export function LoginPage() {
     }
 
     let cancelled = false;
-    apiFetch<{ user: { id: number; name: string; email: string; role: string } }>("/auth/me")
+    apiFetch<{ user: { id: number; name: string; email: string; role: string; hotelName?: string | null } }>("/auth/me")
       .then((data) => {
         if (!cancelled) setAuth(token, data.user);
       })

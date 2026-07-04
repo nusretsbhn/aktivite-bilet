@@ -11,6 +11,7 @@ import type { Activity, BankAccount } from "@/types/ticket";
 import type { TicketLineItem } from "@/types/ticketLine";
 import type { FullPrices } from "@/types/activityPrice";
 import { inputClass } from "@/lib/ui";
+import { useIsHotel } from "@/hooks/useRole";
 
 function newLineId() {
   return `line-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -98,6 +99,7 @@ type Props = {
 export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const manualPricing = useIsHotel();
   const today = new Date().toISOString().slice(0, 10);
   const isEdit = mode === "edit" && ticketId != null;
 
@@ -131,6 +133,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
       apiFetch<{ bankAccounts: BankAccount[] }>("/bank-accounts/picklist").then(
         (r) => r.bankAccounts
       ),
+    enabled: !manualPricing,
   });
 
   const totalAmount = useMemo(
@@ -153,27 +156,31 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   );
 
   useEffect(() => {
-    if (lines.length === 0) return;
+    if (manualPricing || lines.length === 0) return;
     const amounts = distributePrepaidInteger(globalPrepaid, lines.length);
     setLines((prev) =>
       prev.map((line, i) =>
         line.prepaidManual ? line : { ...line, prepaidAmount: amounts[i] ?? 0 }
       )
     );
-  }, [globalPrepaid, lines.length]);
+  }, [globalPrepaid, lines.length, manualPricing]);
 
   async function addActivity(activity: Activity) {
-    const prices = await fetchPricesForDate(activity.id, today);
     const counts = { adult: 1, child: 0, infant: 0 };
-    const sellTotal = calcLineTotal(prices, counts);
-    const buyTotal = calcLineTotal(
-      {
-        adultSellPrice: prices.adultBuyPrice,
-        childSellPrice: prices.childBuyPrice,
-        infantSellPrice: prices.infantBuyPrice,
-      },
-      counts
-    );
+    const prices = manualPricing
+      ? zeroPrices
+      : await fetchPricesForDate(activity.id, today);
+    const sellTotal = manualPricing ? 0 : calcLineTotal(prices, counts);
+    const buyTotal = manualPricing
+      ? 0
+      : calcLineTotal(
+          {
+            adultSellPrice: prices.adultBuyPrice,
+            childSellPrice: prices.childBuyPrice,
+            infantSellPrice: prices.infantBuyPrice,
+          },
+          counts
+        );
 
     const newLine: TicketLineItem = {
       id: newLineId(),
@@ -194,7 +201,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
       sellTotal,
       sellTotalManual: false,
       buyTotal,
-      buyTotalManual: false,
+      buyTotalManual: manualPricing,
       prepaidAmount: 0,
       prepaidManual: false,
       paymentType: "FULL_PAID",
@@ -210,6 +217,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
   }
 
   async function handleTourDateChange(activityId: number, tourDate: string) {
+    if (manualPricing) return zeroPrices;
     return fetchPricesForDate(activityId, tourDate);
   }
 
@@ -254,7 +262,11 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
     const payload = {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
-      bankAccountId: totalPrepaid > 0 ? bankAccountId || undefined : undefined,
+      bankAccountId: manualPricing
+        ? undefined
+        : totalPrepaid > 0
+          ? bankAccountId || undefined
+          : undefined,
       activities: lines.map((l) => ({
             activityId: l.activityId,
             tourDate: l.tourDate,
@@ -270,9 +282,9 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
             infantBuyPrice: l.infantBuyPrice,
             unitPrice: l.sellTotal,
             buyTotal: l.buyTotal,
-            prepaidAmount: l.prepaidAmount,
+            prepaidAmount: manualPricing ? 0 : l.prepaidAmount,
             paymentType: l.paymentType,
-            remainderToOperator: l.remainderToOperator,
+            remainderToOperator: manualPricing ? false : l.remainderToOperator,
             hasTransfer: l.hasTransfer,
             hotelName: l.hasTransfer ? l.hotelName : undefined,
             pickupTime: l.hasTransfer ? l.pickupTime : undefined,
@@ -426,6 +438,7 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
                 onRemove={() => removeLine(line.id)}
                 onTourDateChange={handleTourDateChange}
                 applyPrices={applyPricesToLine}
+                manualPricing={manualPricing}
               />
             </li>
           ))}
@@ -447,36 +460,40 @@ export function TicketForm({ mode = "create", ticketId, initial }: Props) {
                 {totalAmount.toLocaleString("tr-TR")} ₺
               </span>
             </div>
-            <div>
-              <label className="text-muted">Toplam ön ödeme</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={globalPrepaid || ""}
-                onChange={(e) => setGlobalPrepaid(Math.round(Number(e.target.value) || 0))}
-                className={`mt-1 ${inputClass}`}
-              />
-              <p className="mt-1 text-xs text-subtle">
-                Eşit dağıtılır (tam sayı). Satırda elle değiştirebilirsiniz.
-              </p>
-            </div>
-            <div className="flex justify-between text-amber-800">
-              <span>Dağıtılan ön ödeme</span>
-              <span>{totalPrepaid.toLocaleString("tr-TR")} ₺</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Kalan tutar</span>
-              <span>{remainingTotal.toLocaleString("tr-TR")} ₺</span>
-            </div>
-            {lines.some((l) => l.remainderToOperator) && (
-              <p className="text-xs text-primary">
-                İşaretli satırlarda kalan size ödenecek (aktivite carisine yazılmaz).
-              </p>
+            {!manualPricing && (
+              <>
+                <div>
+                  <label className="text-muted">Toplam ön ödeme</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={globalPrepaid || ""}
+                    onChange={(e) => setGlobalPrepaid(Math.round(Number(e.target.value) || 0))}
+                    className={`mt-1 ${inputClass}`}
+                  />
+                  <p className="mt-1 text-xs text-subtle">
+                    Eşit dağıtılır (tam sayı). Satırda elle değiştirebilirsiniz.
+                  </p>
+                </div>
+                <div className="flex justify-between text-amber-800">
+                  <span>Dağıtılan ön ödeme</span>
+                  <span>{totalPrepaid.toLocaleString("tr-TR")} ₺</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Kalan tutar</span>
+                  <span>{remainingTotal.toLocaleString("tr-TR")} ₺</span>
+                </div>
+                {lines.some((l) => l.remainderToOperator) && (
+                  <p className="text-xs text-primary">
+                    İşaretli satırlarda kalan size ödenecek (aktivite carisine yazılmaz).
+                  </p>
+                )}
+              </>
             )}
           </div>
 
-          {totalPrepaid > 0 && (
+          {!manualPricing && totalPrepaid > 0 && (
             <select
               required
               value={bankAccountId}

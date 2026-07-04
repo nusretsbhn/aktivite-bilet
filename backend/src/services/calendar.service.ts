@@ -7,6 +7,7 @@ export async function getCalendarEvents(
   filters?: {
     agencyId?: number;
     paymentType?: PaymentType;
+    createdBy?: number;
   }
 ) {
   const start = new Date(startDate);
@@ -18,6 +19,7 @@ export async function getCalendarEvents(
     tourDate: { gte: start, lte: end },
     ...(filters?.agencyId && { agencyId: filters.agencyId }),
     ...(filters?.paymentType && { paymentType: filters.paymentType }),
+    ...(filters?.createdBy != null && { createdBy: filters.createdBy }),
   };
 
   const tickets = await prisma.ticket.findMany({

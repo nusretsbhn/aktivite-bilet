@@ -2,19 +2,30 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/utils/api";
 
+type UserRole = "ADMIN" | "MANAGER" | "STAFF" | "HOTEL";
+
 type User = {
   id: number;
   name: string;
   email: string;
-  role: "ADMIN" | "MANAGER" | "STAFF";
+  role: UserRole;
+  hotelName?: string | null;
 };
 
 const empty: {
   name: string;
   email: string;
   password: string;
-  role: User["role"];
-} = { name: "", email: "", password: "", role: "STAFF" };
+  role: UserRole;
+  hotelName: string;
+} = { name: "", email: "", password: "", role: "STAFF", hotelName: "" };
+
+const roleLabels: Record<UserRole, string> = {
+  ADMIN: "Admin",
+  MANAGER: "Yönetici",
+  STAFF: "Personel",
+  HOTEL: "Otel (alt kullanıcı)",
+};
 
 export function UserManagement() {
   const [form, setForm] = useState(empty);
@@ -27,7 +38,17 @@ export function UserManagement() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => apiFetch("/users", { method: "POST", body: JSON.stringify(form) }),
+    mutationFn: () =>
+      apiFetch("/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: form.role,
+          hotelName: form.role === "HOTEL" ? form.hotelName : undefined,
+        }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setShowForm(false);
@@ -87,13 +108,32 @@ export function UserManagement() {
             className={inputClass}
             value={form.role}
             onChange={(e) =>
-              setForm({ ...form, role: e.target.value as User["role"] })
+              setForm({
+                ...form,
+                role: e.target.value as UserRole,
+                hotelName: e.target.value === "HOTEL" ? form.hotelName : "",
+              })
             }
           >
             <option value="STAFF">Personel</option>
             <option value="MANAGER">Yönetici</option>
+            <option value="HOTEL">Otel (alt kullanıcı)</option>
             <option value="ADMIN">Admin</option>
           </select>
+          {form.role === "HOTEL" && (
+            <>
+              <input
+                required
+                className={inputClass}
+                placeholder="Otel adı (bilet üstünde görünür)"
+                value={form.hotelName}
+                onChange={(e) => setForm({ ...form, hotelName: e.target.value })}
+              />
+              <p className="text-xs text-muted">
+                Otel kullanıcısı yalnızca kendi kestiği biletleri görür; fiyatları elle girer.
+              </p>
+            </>
+          )}
           <button type="submit" className="min-h-11 w-full rounded-lg bg-teal-700 text-white">
             Kaydet
           </button>
@@ -106,7 +146,10 @@ export function UserManagement() {
             <div>
               <p className="font-medium">{u.name}</p>
               <p className="text-sm text-muted">{u.email}</p>
-              <p className="text-xs text-primary">{u.role}</p>
+              <p className="text-xs text-primary">
+                {roleLabels[u.role]}
+                {u.hotelName ? ` · ${u.hotelName}` : ""}
+              </p>
             </div>
             <button
               type="button"

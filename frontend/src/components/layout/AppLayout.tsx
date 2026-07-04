@@ -1,9 +1,11 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { BottomNav } from "./BottomNav";
 import { useAuthStore } from "@/store/authStore";
+import { useIsHotel } from "@/hooks/useRole";
 
 export function AppLayout() {
   const user = useAuthStore((s) => s.user);
+  const isHotel = useIsHotel();
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
 
@@ -16,10 +18,13 @@ export function AppLayout() {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card px-4 py-3 shadow-sm">
         <div>
-          <h1 className="text-lg font-semibold text-primary">Tur Yönetim</h1>
+          <h1 className="text-lg font-semibold text-primary">
+            {isHotel && user?.hotelName ? user.hotelName : "Tur Yönetim"}
+          </h1>
           {user && (
             <p className="text-xs text-muted">
-              {user.name} · {user.role}
+              {user.name}
+              {!isHotel && ` · ${user.role}`}
             </p>
           )}
         </div>

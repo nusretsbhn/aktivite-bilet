@@ -1,14 +1,18 @@
 import { NavLink } from "react-router-dom";
+import { useIsHotel } from "@/hooks/useRole";
 
-const navItems = [
-  { to: "/calendar", label: "Takvim", icon: "📅" },
-  { to: "/tickets", label: "Biletler", icon: "🎫" },
-  { to: "/tickets/new", label: "Bilet Kes", icon: "➕", center: true },
-  { to: "/current-accounts", label: "Cari", icon: "💰" },
-  { to: "/settings", label: "Ayarlar", icon: "⚙️" },
+const allNavItems = [
+  { to: "/calendar", label: "Takvim", icon: "📅", hotel: false },
+  { to: "/tickets", label: "Biletler", icon: "🎫", hotel: true },
+  { to: "/tickets/new", label: "Bilet Kes", icon: "➕", center: true, hotel: true },
+  { to: "/current-accounts", label: "Cari", icon: "💰", hotel: false },
+  { to: "/settings", label: "Ayarlar", icon: "⚙️", hotel: false },
 ];
 
 export function BottomNav() {
+  const isHotel = useIsHotel();
+  const navItems = isHotel ? allNavItems.filter((i) => i.hotel) : allNavItems;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card px-2 pb-[env(safe-area-inset-bottom)]">
       <ul className="mx-auto flex max-w-lg items-end justify-between py-2">

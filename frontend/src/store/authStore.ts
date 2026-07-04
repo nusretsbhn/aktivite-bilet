@@ -6,6 +6,7 @@ type User = {
   name: string;
   email: string;
   role: string;
+  hotelName?: string | null;
 };
 
 type AuthState = {

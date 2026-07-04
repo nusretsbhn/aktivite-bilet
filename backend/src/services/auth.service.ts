@@ -35,6 +35,7 @@ export async function login(email: string, password: string) {
       name: user.name,
       email: user.email,
       role: user.role,
+      hotelName: user.hotelName,
     },
   };
 }
@@ -42,7 +43,7 @@ export async function login(email: string, password: string) {
 export async function getMe(userId: number) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, hotelName: true },
   });
 
   if (!user) {

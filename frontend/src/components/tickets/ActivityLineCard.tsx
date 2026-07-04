@@ -14,6 +14,7 @@ type Props = {
   onRemove: () => void;
   onTourDateChange?: (activityId: number, tourDate: string) => Promise<FullPrices>;
   applyPrices?: (line: TicketLineItem, prices: FullPrices, resetManual?: boolean) => TicketLineItem;
+  manualPricing?: boolean;
 };
 
 export function ActivityLineCard({
@@ -23,6 +24,7 @@ export function ActivityLineCard({
   onRemove,
   onTourDateChange,
   applyPrices,
+  manualPricing = false,
 }: Props) {
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(String(line.sellTotal));
@@ -174,10 +176,36 @@ export function ActivityLineCard({
       </div>
 
       <div className="mt-2 text-xs text-muted">
-        <span>
-          Alış: Y {line.adultBuyPrice} · Ç {line.childBuyPrice} · B{" "}
-          {line.infantBuyPrice}
-        </span>
+        {manualPricing ? (
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                ["Y satış", "adultSellPrice"],
+                ["Ç satış", "childSellPrice"],
+                ["B satış", "infantSellPrice"],
+              ] as const
+            ).map(([label, key]) => (
+              <label key={key} className="block">
+                <span className="text-subtle">{label}</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={line[key]}
+                  onChange={(e) =>
+                    update({ [key]: Math.round(Number(e.target.value) || 0) })
+                  }
+                  className={`mt-0.5 w-full ${inputClass}`}
+                />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <span>
+            Alış: Y {line.adultBuyPrice} · Ç {line.childBuyPrice} · B{" "}
+            {line.infantBuyPrice}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex justify-around border-y border-border py-2">
@@ -240,7 +268,7 @@ export function ActivityLineCard({
           )}
         </div>
       </div>
-      {!line.sellTotalManual && calculatedSell !== line.sellTotal && (
+      {!manualPricing && !line.sellTotalManual && calculatedSell !== line.sellTotal && (
         <p className="text-xs text-subtle">Hesaplanan: {calculatedSell} ₺</p>
       )}
 
@@ -285,7 +313,7 @@ export function ActivityLineCard({
           )}
         </div>
       </div>
-      {!line.buyTotalManual && calculatedBuy !== line.buyTotal && (
+      {!manualPricing && !line.buyTotalManual && calculatedBuy !== line.buyTotal && (
         <p className="text-xs text-subtle">Hesaplanan maliyet: {calculatedBuy} ₺</p>
       )}
 
@@ -354,32 +382,34 @@ export function ActivityLineCard({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
-        <span className="text-sm text-amber-900">Ön ödeme (bu satır)</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={line.prepaidAmount}
-          onChange={(e) => {
-            const prepaidAmount = Math.round(Number(e.target.value) || 0);
-            const remainder = Math.max(0, displaySell - prepaidAmount);
-            onChange({
-              ...line,
-              prepaidAmount,
-              prepaidManual: true,
-              remainderToOperator:
-                line.remainderToOperator &&
-                line.paymentType === "FULL_PAID" &&
-                prepaidAmount > 0 &&
-                remainder > 0,
-            });
-          }}
-          className="w-24 rounded border bg-card px-2 py-1 text-right font-semibold"
-        />
-      </div>
+      {!manualPricing && (
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
+          <span className="text-sm text-amber-900">Ön ödeme (bu satır)</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={line.prepaidAmount}
+            onChange={(e) => {
+              const prepaidAmount = Math.round(Number(e.target.value) || 0);
+              const remainder = Math.max(0, displaySell - prepaidAmount);
+              onChange({
+                ...line,
+                prepaidAmount,
+                prepaidManual: true,
+                remainderToOperator:
+                  line.remainderToOperator &&
+                  line.paymentType === "FULL_PAID" &&
+                  prepaidAmount > 0 &&
+                  remainder > 0,
+              });
+            }}
+            className="w-24 rounded border bg-card px-2 py-1 text-right font-semibold"
+          />
+        </div>
+      )}
 
-      {showRemainderToOperator && (
+      {!manualPricing && showRemainderToOperator && (
         <label className="mt-2 flex min-h-10 items-start gap-2 rounded-lg border border-primary-border bg-primary-soft px-3 py-2">
           <input
             type="checkbox"

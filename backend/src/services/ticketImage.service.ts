@@ -280,6 +280,11 @@ function buildActivityTicketHtml(
   const primary = layout.primaryColor ?? "#0f766e";
 
   const headerParts: string[] = [];
+  if (ticket.user?.hotelName) {
+    headerParts.push(
+      `<div class="hotel-name">${escapeHtml(ticket.user.hotelName)}</div>`
+    );
+  }
   if (layout.showLogo && brand.companyLogo) {
     headerParts.push(`<div class="logo"><img src="${brand.companyLogo}" alt="" /></div>`);
   }
@@ -331,6 +336,13 @@ function buildActivityTicketHtml(
       margin-bottom: 16px;
     }
     .logo img { max-height: 48px; max-width: 160px; margin-bottom: 8px; }
+    .hotel-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: ${primary};
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
     .company { font-size: 22px; font-weight: 700; color: ${primary}; }
     .ticket-no-large {
       font-family: ui-monospace, monospace;
